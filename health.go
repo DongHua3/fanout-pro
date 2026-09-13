@@ -14,16 +14,27 @@ const (
 	healthTimeout  = 5 * time.Second
 )
 
-// WatchHealth 周期检查每条隧道是否还能出网，掉线的自动换节点重连。
-// VPN Gate 是志愿者节点，运行中掉线很常见。
+// WatchHealth 周期检查每条隧道的健康状况，确保节点离线时显示连接失败，并在节点重新上线后自动恢复连接。
+// 绝不自动换节点，忠实保留用户选定的目标节点。
 func (m *Manager) WatchHealth() {
 	fails := map[int]int{}
+	lastRetry := map[int]time.Time{}
 
 	for range time.Tick(healthInterval) {
 		for _, t := range m.Tunnels() {
+			if t.Status == "failed" {
+				// 处于失败状态的节点：每隔 30 秒自动探测是否已重新上线
+				if time.Since(lastRetry[t.Slot]) >= 30*time.Second {
+					lastRetry[t.Slot] = time.Now()
+					go m.tryReconnectSameNode(t)
+				}
+				continue
+			}
+
 			if t.Status != "up" {
 				continue
 			}
+
 			if m.tunnelHealthy(t) {
 				fails[t.Slot] = 0
 				continue
@@ -35,9 +46,15 @@ func (m *Manager) WatchHealth() {
 				continue
 			}
 
-			log.Printf("隧道 %d (%s) 已确认离线，正在换节点重连", t.Slot, t.Node.HostName)
+			// 确认已掉线：直接标记连接失败，绝不自动换成其他节点！
+			log.Printf("隧道 %d (%s) 已确认离线，标记连接失败，保留该节点等待恢复上线", t.Slot, t.Node.HostName)
 			fails[t.Slot] = 0
-			m.reconnect(t, t.Node.HostName)
+			lastRetry[t.Slot] = time.Now()
+			t.Status = "failed"
+			t.Err = "节点已离线，等待恢复上线"
+			t.ExitIP = ""
+			t.teardownNetns()
+			_ = m.saveState()
 		}
 	}
 }
@@ -88,7 +105,7 @@ func (m *Manager) tunnelHealthy(t *Tunnel) bool {
 // 否则 rebind 找不到旧绑定，入站会掉成孤儿。
 func (m *Manager) reconnect(t *Tunnel, oldHost string) {
 	t.Status = "starting"
-	t.Err = "正在换节点重连"
+	t.Err = "正在换节点重连..."
 	t.ExitIP = ""
 
 	if t.ovpn != nil && t.ovpn.Process != nil {
@@ -98,9 +115,8 @@ func (m *Manager) reconnect(t *Tunnel, oldHost string) {
 	t.teardownNetns()
 
 	go func() {
-		// 通知延后到 rebind/resync 之后：那两步会把入站改绑到新节点，
-		// 提前重建配置会因为入站还指着旧节点名而丢掉路由规则
-		m.bringUpPersist(t, false, true)
+		// 仅连接当前节点，绝不尝试候选切换
+		m.bringUp(t, false)
 		if t.Status != "up" {
 			return
 		}

@@ -1801,7 +1801,7 @@ function isXCL(){ return view.backend === 'xray-cf-lite'; }
 const BACKEND_NAME = {'native':'自建 Xray', '3x-ui':'3x-ui', 'xray-cf-lite':'xray-cf-lite'};
 function backendName(){ return BACKEND_NAME[view.backend] || '3x-ui'; }
 
-const STATUS = {up:'已连通', starting:'连接中', failed:'失败', stopped:'已停止'};
+const STATUS = {up:'已连通', starting:'连接中', failed:'连接失败', stopped:'已停止'};
 
 function formatSince(sinceStr){
   if(!sinceStr) return '';
@@ -1881,7 +1881,7 @@ function renderExits(){
     const sinceText = isUp ? formatSince(e.since) : '';
     const timeHTML = sinceText
       ? '<span class="exit-time"><span class="dot-indicator"></span> ' + esc(sinceText) + '</span>'
-      : (e.status !== 'up' ? '<span class="count" style="color:var(--status-warn)">' + (STATUS[e.status] || e.status) + '</span>' : '');
+      : (e.status !== 'up' ? '<span class="count" style="color:' + (e.status === 'failed' ? 'var(--status-danger)' : 'var(--status-warn)') + '">' + (STATUS[e.status] || e.status) + '</span>' : '');
 
     // 挂载入站胶囊
     let bindingsHTML = '';
@@ -1939,6 +1939,7 @@ function renderExits(){
       +     '<svg class="icon-xs" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
       +     '<span>:' + e.port + '</span>'
       +   '</div>'
+      +   (e.status === 'failed' ? '<button type="button" class="btn btn-ghost" style="padding:5px 10px;font-size:12px;color:var(--primary)" data-retry="' + e.slot + '" title="重试连接该节点"><svg class="icon-xs" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg><span>重试</span></button>' : '')
       +   '<button type="button" class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-swap="' + e.slot + '" title="同地区轮换节点">'
       +     '<svg class="icon-xs" viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>'
       +     '<span>换节点</span>'
@@ -2587,6 +2588,16 @@ document.addEventListener('click', async e => {
     try{
       await api('/api/swap?slot=' + swap.dataset.swap, {method:'POST'});
       toast('正在换节点');
+    }catch(err){ toast(err.message, true); }
+    poll();
+    return;
+  }
+  const retry = e.target.closest('[data-retry]');
+  if(retry){
+    retry.disabled = true;
+    try{
+      await api('/api/retry?slot=' + retry.dataset.retry, {method:'POST'});
+      toast('正在重新连接节点');
     }catch(err){ toast(err.message, true); }
     poll();
     return;

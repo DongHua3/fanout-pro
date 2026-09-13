@@ -131,97 +131,76 @@ func (m *Manager) StartByHost(hostname string) (*Tunnel, error) {
 
 // bringUp 把一条隧道拉起来。
 //
-// notify 决定成功后是否立刻重建后端配置。换节点重连时要传 false：
-// 那条路径随后会调 rebind/resync 把入站改绑到新节点，在那之前重建配置
-// 会因为入站还指着旧节点名而把路由规则丢掉。
+// 仅连接用户选定的当前节点，绝不自动切换到其他候选节点。
+// 连接成功置 up，超时或离线直接置 failed 并显示“连接失败”，保留该节点等待其恢复上线。
 func (m *Manager) bringUp(t *Tunnel, notify bool) {
-	m.bringUpPersist(t, notify, false)
+	if !m.tunnelActive(t) {
+		return
+	}
+	t.Status = "starting"
+	t.Err = "正在连接..."
+	t.ExitIP = ""
+
+	err := m.tryNode(t)
+	if err == nil {
+		t.Status = "up"
+		t.Err = ""
+		if serr := m.saveState(); serr != nil {
+			log.Printf("保存状态失败: %v", serr)
+		}
+		if notify {
+			m.notifyPanel()
+		}
+		return
+	}
+
+	// 握手超时或离线：直接判定连接失败，绝不自动切换节点，保留原选定节点等待上线
+	t.teardownNetns()
+	t.Status = "failed"
+	t.Err = "连接失败，等待节点上线"
+	if serr := m.saveState(); serr != nil {
+		log.Printf("保存状态失败: %v", serr)
+	}
+	log.Printf("隧道 %d (%s) 连接失败: %v，保留该节点等待上线", t.Slot, t.Node.HostName, err)
 }
 
-// 自动重连的退避区间：一轮候选全挂后等一会儿再刷新节点列表重来，
-// 别把死节点列表打爆，也别让恢复拖太久。
-const (
-	reconnectBackoffMin = 5 * time.Second
-	reconnectBackoffMax = 60 * time.Second
-)
-
-// bringUpPersist 把一条隧道拉起来。
-//
-// persist=false（手动新建）：走一轮候选，全失败就标 failed，让用户能立刻看到并重试。
-// persist=true（自动重连 / 重启恢复）：一轮全失败不放弃，退避后刷新节点列表再来一轮，
-// 一直循环到连上或这条隧道被用户停掉。VPN Gate 死节点多，"当前都不可用"往往只是
-// 这一批候选恰好都挂了，过一会儿就有新节点，不该让出口永久躺死。
-func (m *Manager) bringUpPersist(t *Tunnel, notify bool, persist bool) {
-	backoff := reconnectBackoffMin
-	for {
-		if m.tryCandidates(t, notify) {
-			return
-		}
-		// 隧道已被用户停掉或从管理器移除，别再重试
-		if !persist || !m.tunnelActive(t) {
-			if persist {
-				return
-			}
-			t.Status = "failed"
-			if serr := m.saveState(); serr != nil {
-				log.Printf("保存状态失败: %v", serr)
-			}
-			return
-		}
-
-		t.Status = "starting"
-		t.Err = fmt.Sprintf("暂无可用节点，%.0f 秒后重试", backoff.Seconds())
-		log.Printf("隧道 %d 一轮候选均失败，%.0f 秒后刷新节点重试", t.Slot, backoff.Seconds())
-		time.Sleep(backoff)
-		if !m.tunnelActive(t) {
-			return
-		}
-		if _, err := m.RefreshNodes(); err != nil {
-			log.Printf("重试前刷新节点列表失败: %v", err)
-		}
-		if backoff < reconnectBackoffMax {
-			backoff *= 2
-			if backoff > reconnectBackoffMax {
-				backoff = reconnectBackoffMax
-			}
-		}
+// tryReconnectSameNode 仅针对原选定节点尝试重连，绝不更换节点。
+func (m *Manager) tryReconnectSameNode(t *Tunnel) {
+	if !m.tunnelActive(t) || t.Status == "up" {
+		return
 	}
+	t.Status = "starting"
+	t.Err = "检测节点是否已上线..."
+	err := m.tryNode(t)
+	if err == nil {
+		t.Status = "up"
+		t.Err = ""
+		_ = m.saveState()
+		log.Printf("隧道 %d (%s) 节点已恢复上线并成功连通！", t.Slot, t.Node.HostName)
+		if err := m.resync(t); err != nil {
+			log.Printf("节点上线后同步 3x-ui 出站失败: %v", err)
+		}
+		return
+	}
+	t.teardownNetns()
+	t.Status = "failed"
+	t.Err = "连接失败，等待节点上线"
+	_ = m.saveState()
 }
 
-// tryCandidates 走一轮候选节点，成功返回 true。失败不改 Status（留给调用方决定）。
-func (m *Manager) tryCandidates(t *Tunnel, notify bool) bool {
-	// VPN Gate 是志愿者节点，列表里有相当比例已下线或满员（AUTH_FAILED），
-	// 连不上就顺着候选列表换下一个，不必让用户手动试。
-	candidates := m.candidatesFor(t.Node)
-	for i, node := range candidates {
-		if !m.tunnelActive(t) {
-			return false
-		}
-		// 其他隧道可能在重试期间占用了这个节点，跳过以免多个端口撞同一出口 IP
-		if i > 0 && m.nodeInUse(node.HostName, t.Slot) {
-			continue
-		}
-		t.Node = node
-		t.Status = "starting"
-		if i > 0 {
-			t.Err = fmt.Sprintf("已换到第 %d 个候选节点 (%s)", i+1, node.IP)
-		}
-
-		err := m.tryNode(t)
-		if err == nil {
-			t.Status = "up"
-			t.Err = ""
-			if serr := m.saveState(); serr != nil {
-				log.Printf("保存状态失败: %v", serr)
-			}
-			if notify {
-				m.notifyPanel()
-			}
-			return true
-		}
-		t.teardownNetns()
+// Retry 手动重试连接该槽位当前的节点
+func (m *Manager) Retry(slot int) error {
+	m.mu.RLock()
+	t, ok := m.tunnels[slot]
+	m.mu.RUnlock()
+	if !ok {
+		return fmt.Errorf("槽位 %d 不存在", slot)
 	}
-	return false
+	if t.Status == "starting" {
+		return fmt.Errorf("当前正在连接中，稍候")
+	}
+	go m.tryReconnectSameNode(t)
+	return nil
 }
 
 // tunnelActive 判断这条隧道是否还归管理器所有且未被用户停掉。
@@ -261,45 +240,7 @@ func (m *Manager) tryNode(t *Tunnel) error {
 	return nil
 }
 
-// candidatesFor 以指定节点打头，后面跟上同地区的其他节点作为备选。
-func (m *Manager) candidatesFor(first Node) []Node {
-	const maxTries = 6
-	m.mu.RLock()
-	defer m.mu.RUnlock()
 
-	used := map[string]bool{first.HostName: true}
-	for _, t := range m.tunnels {
-		used[t.Node.HostName] = true
-	}
-
-	// 地区决定了备选范围，缺失时先从当前列表补一次，
-	// 否则会退化成"任意地区都算同区"。
-	region := first.CountryCode
-	if region == "" {
-		for _, n := range m.nodes {
-			if n.HostName == first.HostName {
-				region = n.CountryCode
-				break
-			}
-		}
-	}
-
-	out := []Node{first}
-	for _, n := range m.nodes {
-		if len(out) >= maxTries {
-			break
-		}
-		if used[n.HostName] {
-			continue
-		}
-		// 地区实在拿不到时不做限制，总比连不上强
-		if region != "" && n.CountryCode != region {
-			continue
-		}
-		out = append(out, n)
-	}
-	return out
-}
 
 // Stop 停掉一条隧道并释放槽位。
 func (m *Manager) Stop(slot int) error {
