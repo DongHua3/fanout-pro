@@ -601,12 +601,13 @@ main{padding:20px 24px 60px;max-width:1280px;margin:0 auto}
 .exit-list{display:flex;flex-direction:column;gap:10px}
 .exit-card{background:var(--bg-card);border:1px solid var(--border-card);border-radius:var(--radius-md);
   padding:14px 20px;box-shadow:var(--shadow-card);display:flex;align-items:center;justify-content:space-between;gap:16px;transition:all .15s}
-.exit-card:hover{border-color:var(--border-card-hover);background:var(--bg-card-hover)}
-.exit-main{display:flex;align-items:center;gap:14px;flex:1.2}
-.exit-ip{font-size:14px;font-weight:700;color:var(--text-main);display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.exit-main{display:flex;align-items:center;gap:14px;flex:1.3;min-width:0}
+.exit-info{display:flex;flex-direction:column;gap:5px;min-width:0}
+.exit-ip-row{font-size:14px;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:8px}
+.exit-metrics-row{display:flex;align-items:center;gap:8px;flex-wrap:nowrap}
 .copy-btn{font-size:11px;padding:2px 6px;border-radius:4px;background:var(--bg-surface);border:1px solid var(--border-card);color:var(--text-muted);cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:all .15s}
 .copy-btn:hover{background:var(--bg-surface-sub);color:var(--text-main)}
-.exit-meta{font-size:12px;color:var(--text-muted);margin-top:3px;display:flex;align-items:center;gap:8px}
+.exit-meta{font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:8px}
 .exit-time{display:inline-flex;align-items:center;gap:5px;color:var(--status-up);font-size:11px;font-weight:500}
 .exit-bindings{flex:1.4;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .bound-pill{display:inline-flex;align-items:center;padding:3px 8px;border-radius:var(--radius-sm);background:var(--accent-blue-bg);border:1px solid var(--accent-blue-border);color:var(--accent-blue);font-size:12px;font-weight:600;gap:6px}
@@ -1909,16 +1910,19 @@ function renderExits(){
       ? '<div class="errline" style="margin-top:6px;color:var(--status-danger);font-size:12px" title="' + esc(e.err) + '">' + esc(e.err) + '</div>'
       : '';
 
+    // 第二排三个核心指标字段 (质量画像、实时延迟、测速带宽) 统一排列
+    const row2Badges = qualityBadge + perfBadges;
+    const metricsHTML = row2Badges ? ('<div class="exit-metrics-row">' + row2Badges + '</div>') : '';
+
     return '<div class="exit-card">'
       + '<div class="exit-main">'
       +   '<span class="country-tag">' + country + '</span>'
-      +   '<div>'
-      +     '<div class="exit-ip">'
+      +   '<div class="exit-info">'
+      +     '<div class="exit-ip-row">'
       +       '<span class="mono">' + esc(label) + '</span>'
       +       (e.exit_ip ? '<button type="button" class="copy-btn" data-copy="' + esc(e.exit_ip) + '" title="复制出口 IP"><svg class="icon-xs" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg><span>复制</span></button>' : '')
-      +       qualityBadge
-      +       perfBadges
       +     '</div>'
+      +     metricsHTML
       +     '<div class="exit-meta">'
       +       '<span>' + metaStr + '</span>'
       +       timeHTML
