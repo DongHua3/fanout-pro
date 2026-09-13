@@ -102,7 +102,7 @@ show_info() {
   bp=$(cat "$WORK_DIR/basepath" 2>/dev/null || echo "")
   pw=$(cat "$WORK_DIR/password" 2>/dev/null || echo "-")
   ip=$(public_ip)
-  ver=$("$BIN" -version 2>/dev/null || echo 'v1.3.9')
+  ver=$("$BIN" -version 2>/dev/null || echo 'v1.4.0')
 
   dom=$(sed -n 's/.*"domain"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null || true)
   cf=$(sed -n 's/.*"cert_file"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null || true)
@@ -496,7 +496,7 @@ acme_standalone() {
 
   update_json_val "cert_file" "$WORK_DIR/ssl/fullchain.pem"
   update_json_val "key_file" "$WORK_DIR/ssl/privkey.pem"
-  update_json_val "ssl_mode" "acme"
+  update_json_val "ssl_mode" "acme_standalone"
   svc_restart
   echo -e "  ${G}ACME 证书申请并安装成功！已配置自动续期与热重载。${N}"
 }
@@ -547,7 +547,7 @@ acme_cf_dns() {
 
   update_json_val "cert_file" "$WORK_DIR/ssl/fullchain.pem"
   update_json_val "key_file" "$WORK_DIR/ssl/privkey.pem"
-  update_json_val "ssl_mode" "acme"
+  update_json_val "ssl_mode" "acme_cf_dns"
   svc_restart
   echo -e "  ${G}Cloudflare DNS ACME 证书申请并安装成功！${N}"
 }
@@ -693,11 +693,23 @@ ssl_menu() {
     sm=$(sed -n 's/.*"ssl_mode"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null || true)
 
     local sm_desc="${D}未配置 (HTTP 直连)${N}"
-    [[ "$sm" == "none" ]] && sm_desc="${Y}外部反代 / 纯域名 HTTP${N}"
-    [[ "$sm" == "custom" ]] && sm_desc="${G}[原生自定义 SSL 证书 (HTTPS)]${N}"
-    [[ "$sm" == "acme_standalone" ]] && sm_desc="${G}[ACME Standalone 自动证书]${N}"
-    [[ "$sm" == "acme_cf_dns" ]] && sm_desc="${G}[ACME Cloudflare DNS 证书]${N}"
-    [[ "$sm" == "caddy" ]] && sm_desc="${G}[Caddy 自动化反代 (443免端口)]${N}"
+    if [[ -n "$cf" && "$sm" != "none" && "$sm" != "caddy" ]]; then
+      if [[ "$sm" == "custom" ]]; then
+        sm_desc="${G}[原生自定义 SSL 证书 (HTTPS)]${N}"
+      elif [[ "$sm" == "acme_standalone" ]]; then
+        sm_desc="${G}[ACME Standalone 自动证书 (HTTPS)]${N}"
+      elif [[ "$sm" == "acme_cf_dns" ]]; then
+        sm_desc="${G}[ACME Cloudflare DNS 证书 (HTTPS)]${N}"
+      elif [[ "$sm" == "acme"* ]]; then
+        sm_desc="${G}[ACME 自动证书 (HTTPS)]${N}"
+      else
+        sm_desc="${G}[原生 HTTPS 证书已生效]${N}"
+      fi
+    elif [[ "$sm" == "caddy" ]]; then
+      sm_desc="${G}[Caddy 自动化反代 (443免端口)]${N}"
+    elif [[ "$sm" == "none" ]] || [[ -n "$dom" && -z "$cf" ]]; then
+      sm_desc="${Y}外部反代 / 纯域名 HTTP${N}"
+    fi
 
     echo
     echo -e "  ${B}╔═══════════════════════════════════════════════════════════════╗${N}"
@@ -717,12 +729,12 @@ ssl_menu() {
     echo
     echo -e "  ${B}── [ 域名与反向代理 ] ──────────────────────────────────────────${N}"
     echo -e "   ${Y} 1.${N} 设置 / 修改面板绑定域名 (用于反代或直接访问)"
-    echo -e "   ${Y} 2.${N} ${G}一键配置 Caddy 自动化反代 (母机 443 免端口纯净访问)${N}"
+    echo -e "   ${Y} 2.${N} 一键配置 Caddy 自动化反代 (独占443免端口，若已装3x-ui请勿用)"
     echo
     echo -e "  ${B}── [ SSL / HTTPS 证书申请与管理 ] ──────────────────────────────${N}"
-    echo -e "   ${Y} 3.${N} 绑定已有自定义证书路径 (.crt / .key 文件)"
+    echo -e "   ${Y} 3.${N} ${G}绑定已有自定义证书路径 (.crt / .key，推荐复用 3x-ui 证书)${N}"
     echo -e "   ${Y} 4.${N} 一键申请 ACME 免费证书 (HTTP-80 Standalone 模式)"
-    echo -e "   ${Y} 5.${N} 一键申请 ACME 免费证书 (Cloudflare DNS API 零端口模式)"
+    echo -e "   ${Y} 5.${N} ${G}一键申请 ACME 免费证书 (Cloudflare DNS 零端口，3x-ui 兼容)${N}"
     echo -e "   ${Y} 6.${N} 深度检测当前证书有效性与到期天数"
     echo -e "   ${Y} 7.${N} ${R}清除 SSL 配置 (安全降级为 HTTP 明文直连)${N}"
     echo
