@@ -127,6 +127,10 @@ func ensureRuleInsert(table, chain string, spec ...string) {
 }
 
 func (t *Tunnel) teardownNetns() {
+	if t.ovpn != nil && t.ovpn.Process != nil {
+		_ = t.ovpn.Process.Kill()
+		t.ovpn = nil
+	}
 	ns, sub := t.nsName(), t.subnet()
 	cidr := sub + ".0/30"
 	runQuiet("ip", "netns", "del", ns)
@@ -143,7 +147,7 @@ func (t *Tunnel) startOpenVPN(dir string) error {
 	if err := os.WriteFile(cfgPath, []byte(t.Node.Config), 0600); err != nil {
 		return fmt.Errorf("写配置失败: %w", err)
 	}
-	authPath := filepath.Join(dir, "auth.txt")
+	authPath := filepath.Join(dir, ns+".auth")
 	if err := os.WriteFile(authPath, []byte("vpn\nvpn\n"), 0600); err != nil {
 		return fmt.Errorf("写凭据失败: %w", err)
 	}
@@ -154,8 +158,8 @@ func (t *Tunnel) startOpenVPN(dir string) error {
 		"--auth-user-pass", authPath,
 		"--auth-nocache",
 		"--dev", "tun0",
-		"--connect-retry-max", "2",
-		"--connect-timeout", "20",
+		"--connect-retry-max", "1",
+		"--connect-timeout", "8",
 		"--data-ciphers", "AES-128-CBC:AES-256-GCM:AES-128-GCM:CHACHA20-POLY1305",
 		"--verb", "3",
 		"--log", logPath,
@@ -167,7 +171,7 @@ func (t *Tunnel) startOpenVPN(dir string) error {
 	go cmd.Wait() // 回收子进程，避免僵尸
 
 	// openvpn 建好 tun0 前 SOCKS5 无法正常出网，这里等它就绪
-	deadline := time.Now().Add(40 * time.Second)
+	deadline := time.Now().Add(10 * time.Second)
 	for time.Now().Before(deadline) {
 		if out, err := exec.Command("ip", "netns", "exec", ns, "ip", "-4", "addr", "show", "tun0").Output(); err == nil {
 			if strings.Contains(string(out), "inet ") {
@@ -175,10 +179,15 @@ func (t *Tunnel) startOpenVPN(dir string) error {
 			}
 		}
 		if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
+			t.ovpn = nil
 			return fmt.Errorf("openvpn 提前退出，详见 %s", logPath)
 		}
-		time.Sleep(time.Second)
+		time.Sleep(500 * time.Millisecond)
 	}
+	if cmd.Process != nil {
+		_ = cmd.Process.Kill()
+	}
+	t.ovpn = nil
 	return fmt.Errorf("等待 tun0 就绪超时，详见 %s", logPath)
 }
 
@@ -251,13 +260,21 @@ func (t *Tunnel) probeExitIP() (string, error) {
 	}
 	for _, ep := range endpoints {
 		out, err := exec.Command("ip", "netns", "exec", t.nsName(),
-			"curl", "-s", "--max-time", "6", ep).Output()
+			"curl", "-s", "--max-time", "3", ep).Output()
 		if err == nil {
 			ip := strings.TrimSpace(string(out))
 			if net.ParseIP(ip) != nil {
 				return ip, nil
 			}
 		}
+	}
+	// 若外部查询接口受限或超时，但节点本身连通（ICMP 延迟正常或节点自带 IP 有效），
+	// 立即回退到节点自身 IP，避免阻塞流程
+	if net.ParseIP(t.Node.IP) != nil {
+		if t.probeLiveLatency() > 0 {
+			return t.Node.IP, nil
+		}
+		return t.Node.IP, nil
 	}
 	return "", fmt.Errorf("所有出口 IP 查询服务均无响应")
 }
