@@ -1919,7 +1919,7 @@ function renderExits(){
       +   '<span class="country-tag">' + country + '</span>'
       +   '<div class="exit-info">'
       +     '<div class="exit-ip-row">'
-      +       '<span class="mono">' + esc(label) + '</span>'
+      +       '<span class="mono"' + (e.status === 'failed' ? ' style="color:var(--status-danger);font-weight:700"' : (e.status === 'starting' ? ' style="color:var(--status-warn)"' : '')) + '>' + esc(label) + '</span>'
       +       (e.exit_ip ? '<button type="button" class="copy-btn" data-copy="' + esc(e.exit_ip) + '" title="复制出口 IP"><svg class="icon-xs" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg><span>复制</span></button>' : '')
       +     '</div>'
       +     metricsHTML
