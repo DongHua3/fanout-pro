@@ -7,7 +7,8 @@ SERVICE=fanout
 BIN=/usr/local/bin/fanout
 REPO="${REPO:-DongHua3/fanout-pro}"
 
-G='\033[0;32m'; R='\033[0;31m'; Y='\033[0;33m'; B='\033[0;36m'; D='\033[2m'; N='\033[0m'
+# 样式与高对比终端配色
+G='\033[1;32m'; R='\033[1;31m'; Y='\033[1;33m'; B='\033[1;36m'; M='\033[1;35m'; W='\033[1;37m'; D='\033[0;90m'; N='\033[0m'
 
 need_root() {
   [[ $EUID -eq 0 ]] || { echo -e "${R}需要 root${N}"; exit 1; }
@@ -91,63 +92,79 @@ public_ip() {
 
 pause() {
   echo
-  read -rp "回车返回菜单..." _
+  echo -ne "  ${D}⌨️  按回车键继续...${N}"
+  read -r _
 }
 
 show_info() {
-  local state port bp pw ip dom cf sm la
+  local state port bp pw ip dom cf sm la ver n state_badge autostart_badge
   state=$(svc_state); port=$(web_port)
-  bp=$(cat "$WORK_DIR/basepath" 2>/dev/null || echo "-")
+  bp=$(cat "$WORK_DIR/basepath" 2>/dev/null || echo "")
   pw=$(cat "$WORK_DIR/password" 2>/dev/null || echo "-")
   ip=$(public_ip)
+  ver=$("$BIN" -version 2>/dev/null || echo 'v1.3.7')
 
-  dom=$(sed -n 's/.*"domain"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null)
-  cf=$(sed -n 's/.*"cert_file"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null)
-  sm=$(sed -n 's/.*"ssl_mode"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null)
-  la=$(sed -n 's/.*"listen_addr"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null)
+  dom=$(sed -n 's/.*"domain"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null || true)
+  cf=$(sed -n 's/.*"cert_file"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null || true)
+  sm=$(sed -n 's/.*"ssl_mode"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null || true)
+  la=$(sed -n 's/.*"listen_addr"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null || true)
 
-  echo
+  n=$(ls -d /var/run/netns/fo* 2>/dev/null | wc -l | tr -d ' ')
+
   if [[ $state == running ]]; then
-    echo -e "  状态      ${G}运行中${N}"
+    state_badge="${G}● 运行中${N}"
   else
-    echo -e "  状态      ${R}已停止${N}"
+    state_badge="${R}● 已停止${N}"
   fi
-  echo -e "  版本      $("$BIN" -version 2>/dev/null || echo '-')"
-  echo -e "  开机自启  $(svc_enabled_text)"
-  echo
+
+  if svc_is_enabled; then
+    autostart_badge="${G}已开启${N}"
+  else
+    autostart_badge="${D}已关闭${N}"
+  fi
 
   local path_part=""
   [[ -n "$bp" && "$bp" != "-" ]] && path_part="${bp#/}/"
 
+  local panel_url="" proto_tag=""
   if [[ "$sm" == "caddy" ]] && [[ -n "$dom" ]]; then
-    echo -e "  ${B}管理地址  https://${dom}/${path_part}${N} ${G}(Caddy 反代 443)${N}"
-    echo -e "  ${D}本地监听  http://127.0.0.1:${port}/${path_part}${N}"
+    panel_url="https://${dom}/${path_part}"
+    proto_tag="${G}🔒 Caddy 443 反代${N}"
   elif [[ -n "$cf" ]] && [[ "$sm" != "none" ]]; then
     local host_part="${dom:-$ip}"
     if [[ "$port" == "443" ]]; then
-      echo -e "  ${B}管理地址  https://${host_part}/${path_part}${N} ${G}(原生 HTTPS)${N}"
+      panel_url="https://${host_part}/${path_part}"
     else
-      echo -e "  ${B}管理地址  https://${host_part}:${port}/${path_part}${N} ${G}(原生 HTTPS)${N}"
+      panel_url="https://${host_part}:${port}/${path_part}"
     fi
+    proto_tag="${G}🔒 原生 HTTPS${N}"
   elif [[ -n "$dom" ]]; then
-    echo -e "  ${B}管理地址  http://${dom}:${port}/${path_part}${N} ${D}(纯域名 HTTP)${N}"
+    panel_url="http://${dom}:${port}/${path_part}"
+    proto_tag="${Y}🌐 纯域名 HTTP${N}"
   else
-    echo -e "  ${B}管理地址  http://${ip}:${port}/${path_part}${N}"
+    panel_url="http://${ip}:${port}/${path_part}"
+    proto_tag="${D}🌐 公网 IP 访问${N}"
   fi
 
-  echo -e "  ${B}访问口令  ${pw}${N}"
   echo
-
-  local n
-  n=$(ls -d /var/run/netns/fo* 2>/dev/null | wc -l | tr -d ' ')
-  echo -e "  ${D}运行中的隧道: ${n}${N}"
+  echo -e "  ${B}┌─ [ 系统实时运行看板 ] ────────────────────────────────────────┐${N}"
+  echo -e "  ${B}│${N}  服务状态: ${state_badge}          核心版本: ${B}${ver}${N}              ${B}│${N}"
+  echo -e "  ${B}│${N}  开机自启: ${autostart_badge}              活跃隧道: ${G}${n} 个出口${N}           ${B}│${N}"
+  echo -e "  ${B}├─ [ 管理面板访问凭据 ] ────────────────────────────────────────┤${N}"
+  echo -e "  ${B}│${N}  管理地址: ${W}${panel_url}${N}"
+  echo -e "  ${B}│${N}  协议模式: ${proto_tag}"
+  if [[ "$sm" == "caddy" ]] && [[ -n "$dom" ]]; then
+    echo -e "  ${B}│${N}  本地监听: ${D}http://127.0.0.1:${port}/${path_part}${N}"
+  fi
+  echo -e "  ${B}│${N}  访问口令: ${Y}${pw}${N}"
+  echo -e "  ${B}└───────────────────────────────────────────────────────────────┘${N}"
 }
 
 list_tunnels() {
   local port bp pw ck
   port=$(web_port)
-  bp=$(cat "$WORK_DIR/basepath" 2>/dev/null)
-  pw=$(cat "$WORK_DIR/password" 2>/dev/null)
+  bp=$(cat "$WORK_DIR/basepath" 2>/dev/null || echo "")
+  pw=$(cat "$WORK_DIR/password" 2>/dev/null || echo "")
   ck=$(mktemp)
 
   curl -s --max-time 10 -c "$ck" -X POST -d "password=${pw}" \
@@ -157,13 +174,16 @@ list_tunnels() {
     > "$ck.json" 2>/dev/null
   rm -f "$ck"
 
-  # 用 sed/awk 解析而不是 python3/jq：Alpine 最小安装两者都没有，
-  # 为了一条列表命令再拉依赖不值当。字段固定，按对象拆行足够稳。
+  echo -e "  ${B}╔═══════════════════════════════════════════════════════════════╗${N}"
+  echo -e "  ${B}║${N}                     ${W}当前运行中的隧道出口列表${N}                  ${B}║${N}"
+  echo -e "  ${B}╚═══════════════════════════════════════════════════════════════╝${N}"
+  echo
+
   if [[ ! -s "$ck.json" ]] || ! grep -q '"port"' "$ck.json" 2>/dev/null; then
-    echo "  还没有隧道，去网页里添加"
+    echo -e "  ${D}暂无运行中的隧道出口，请在 Web 管理面板中添加节点。${N}"
   else
-    printf "  %-10s%-11s%-18s%s\n" "端口" "状态" "出口 IP" "节点"
-    # 按 {"slot" 切分而不是按 }：node 是嵌套对象，按 } 切会把一条记录劈成两半
+    printf "  ${B}%-8s${N}  ${W}%-10s${N}  ${G}%-18s${N}  ${D}%s${N}\n" "本地端口" "运行状态" "出口公网 IP" "VPN Gate 节点"
+    echo -e "  ${D}───────────────────────────────────────────────────────────────${N}"
     sed 's/{"slot"/\n{"slot"/g' "$ck.json" | while IFS= read -r line; do
       case "$line" in *'"slot"'*) ;; *) continue ;; esac
       p=$(echo "$line"  | sed -n 's/.*"port":\([0-9]*\).*/\1/p')
@@ -171,7 +191,9 @@ list_tunnels() {
       ip=$(echo "$line" | sed -n 's/.*"exit_ip":"\([^"]*\)".*/\1/p')
       hn=$(echo "$line" | sed -n 's/.*"hostname":"\([^"]*\)".*/\1/p')
       [[ -z $p ]] && continue
-      printf "  %-10s%-11s%-18s%s\n" "$p" "${st:--}" "${ip:--}" "${hn:--}"
+      local st_colored="${D}${st:--}${N}"
+      [[ "$st" == "connected" || "$st" == "up" || "$st" == "running" ]] && st_colored="${G}● 活跃${N}"
+      printf "  ${Y}%-8s${N}  %-19b  ${W}%-18s${N}  ${D}%s${N}\n" "$p" "$st_colored" "${ip:--}" "${hn:--}"
     done
   fi
   rm -f "$ck.json"
@@ -181,18 +203,19 @@ change_port() {
   local cur new
   cur=$(web_port)
   echo
-  read -rp "  新端口 (当前 ${cur}): " new
-  [[ -z $new ]] && { echo "  未修改"; return; }
+  echo -e "  ${B}┌─ [ 修改管理面板监听端口 ] ───────────────────────────────────┐${N}"
+  echo -e "  ${B}│${N}  当前端口: ${Y}${cur}${N}                                               ${B}│${N}"
+  echo -e "  ${B}└──────────────────────────────────────────────────────────────┘${N}"
+  read -rp "  请输入新端口 [1-65535] (回车保持不变): " new
+  [[ -z $new ]] && { echo -e "  ${D}已取消修改${N}"; return; }
   if ! [[ $new =~ ^[0-9]+$ ]] || (( new < 1 || new > 65535 )); then
-    echo -e "  ${R}端口不合法${N}"; return
+    echo -e "  ${R}❌ 端口不合法，必须为 1-65535 的纯数字${N}"; return
   fi
   if ss -tln 2>/dev/null | grep -q ":${new} "; then
-    echo -e "  ${R}端口 ${new} 已被占用${N}"; return
+    echo -e "  ${R}❌ 端口 ${new} 已被系统其它进程占用${N}"; return
   fi
-  # 写 settings.json（权威来源），并把服务文件里可能残留的 -web 一并同步，
-  # 免得老安装重启后又被写死的旧端口拽回去。
   if [[ -f "$WORK_DIR/settings.json" ]]; then
-    sed -i "s/\"port\"[[:space:]]*:[[:space:]]*[0-9]*/\"port\": ${new}/" "$WORK_DIR/settings.json"
+    update_json_val "port" "$new"
   else
     printf '{\n  "port": %s,\n  "listen_addr": ""\n}\n' "$new" > "$WORK_DIR/settings.json"
     chmod 600 "$WORK_DIR/settings.json"
@@ -200,26 +223,32 @@ change_port() {
   sed -i "s/-web ${cur}/-web ${new}/" "$UNIT" 2>/dev/null
   svc_reload
   svc_restart
-  echo -e "  ${G}已改为 ${new} 并重启${N}"
+  echo -e "  ${G}✅ 管理面板监听端口已成功改为: ${new} 并重启生效${N}"
 }
 
 reset_password() {
   local pw
   echo
-  read -rp "  新口令 (留空则随机生成): " pw
+  echo -e "  ${B}┌─ [ 修改管理面板访问口令 ] ───────────────────────────────────┐${N}"
+  echo -e "  ${B}│${N}  改完后只影响新登录会话，当前已登录客户端无需重复输入        ${B}│${N}"
+  echo -e "  ${B}└──────────────────────────────────────────────────────────────┘${N}"
+  read -rp "  请输入新口令 (留空则随机生成无歧义密码): " pw
   if [[ -z $pw ]]; then
     pw=$(head -c 9 /dev/urandom | od -An -tx1 | tr -d ' \n')
   fi
   umask 077
   echo "$pw" > "$WORK_DIR/password"
   svc_restart
-  echo -e "  ${G}新口令: ${pw}${N}"
+  echo -e "  ${G}✅ 访问口令已成功重置为: ${Y}${pw}${N}"
 }
 
 reset_basepath() {
   local bp
   echo
-  read -rp "  新访问路径 (留空则随机生成): " bp
+  echo -e "  ${B}┌─ [ 修改管理面板访问路径前缀 ] ───────────────────────────────┐${N}"
+  echo -e "  ${B}│${N}  隐藏在自定义路径后，能有效阻断端口全网扫描探针探测          ${B}│${N}"
+  echo -e "  ${B}└──────────────────────────────────────────────────────────────┘${N}"
+  read -rp "  请输入新访问路径 (例如 mypanel，留空则随机生成): " bp
   if [[ -z $bp ]]; then
     rm -f "$WORK_DIR/basepath"
     svc_restart
@@ -231,7 +260,7 @@ reset_basepath() {
     echo "$bp" > "$WORK_DIR/basepath"
     svc_restart
   fi
-  echo -e "  ${G}新路径: /${bp}/${N}"
+  echo -e "  ${G}✅ 访问路径已成功更新为: ${B}/${bp}/${N}"
 }
 
 ipv6_state() {
@@ -273,8 +302,10 @@ EOF
 
 show_links() {
   echo
-  echo -e "  项目开源地址  ${B}https://github.com/DongHua3/fanout-pro${N}"
-  echo
+  echo -e "  ${B}┌─ [ 项目官方开源主页 ] ────────────────────────────────────────┐${N}"
+  echo -e "  ${B}│${N}  GitHub 仓库: ${W}https://github.com/DongHua3/fanout-pro${N}        ${B}│${N}"
+  echo -e "  ${B}│${N}  欢迎前往仓库 Star ⭐、提交反馈与查看最新版本发布日志           ${B}│${N}"
+  echo -e "  ${B}└───────────────────────────────────────────────────────────────┘${N}"
 }
 
 # 老版本把 -web 写死在服务文件里，和 settings.json 互相拽回旧值。
@@ -654,36 +685,58 @@ EOF
 
 ssl_menu() {
   while true; do
+    clear
     local dom cf kf sm sub_ch
     dom=$(sed -n 's/.*"domain"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null || true)
     cf=$(sed -n 's/.*"cert_file"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null || true)
     kf=$(sed -n 's/.*"key_file"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null || true)
     sm=$(sed -n 's/.*"ssl_mode"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null || true)
 
+    local sm_desc="${D}未配置 (HTTP 直连)${N}"
+    [[ "$sm" == "none" ]] && sm_desc="${Y}外部反代 / 纯域名 HTTP${N}"
+    [[ "$sm" == "custom" ]] && sm_desc="${G}🔒 原生自定义 SSL 证书 (HTTPS)${N}"
+    [[ "$sm" == "acme_standalone" ]] && sm_desc="${G}🔒 ACME Standalone 自动证书${N}"
+    [[ "$sm" == "acme_cf_dns" ]] && sm_desc="${G}🔒 ACME Cloudflare DNS 证书${N}"
+    [[ "$sm" == "caddy" ]] && sm_desc="${G}🔒 Caddy 自动化反代 (443免端口)${N}"
+
     echo
-    echo -e "${B}  域名与 SSL (HTTPS) 管理${N}"
-    echo -e "  绑定域名: ${B}${dom:-未绑定}${N}"
-    echo -e "  SSL 模式: ${G}${sm:-none}${N}"
-    echo -e "  证书文件: ${D}${cf:-未设置}${N}"
-    echo -e "  私钥文件: ${D}${kf:-未设置}${N}"
-    echo -e "${D}  ─────────────────────────────${N}"
-    echo "   1) 设置/修改面板域名"
-    echo "   2) 绑定已有自定义证书 (.crt/.pem 与 .key)"
-    echo "   3) 一键申请 ACME 免费证书 (80 端口 Standalone 模式)"
-    echo "   4) 一键申请 ACME 免费证书 (Cloudflare DNS API 零端口模式)"
-    echo "   5) 一键配置 Caddy 443 自动化反向代理 (免端口)"
-    echo "   6) 检测当前证书有效性与剩余天数"
-    echo "   7) 清除 SSL 证书 (恢复 HTTP 明文访问)"
-    echo "   0) 返回主菜单"
-    echo -e "${D}  ─────────────────────────────${N}"
-    read -rp "  选择: " sub_ch
+    echo -e "  ${B}╔═══════════════════════════════════════════════════════════════╗${N}"
+    echo -e "  ${B}║${N}       ${W}FANOUT PRO${N}  ${D}•  域名与 SSL (HTTPS) 安全管理${N}              ${B}║${N}"
+    echo -e "  ${B}╚═══════════════════════════════════════════════════════════════╝${N}"
+    echo
+    echo -e "  ${B}┌─ [ 当前域名与证书状态 ] ──────────────────────────────────────┐${N}"
+    echo -e "  ${B}│${N}  绑定域名: ${W}${dom:-未绑定}${N}"
+    echo -e "  ${B}│${N}  当前模式: ${sm_desc}"
+    if [[ -n "$cf" ]]; then
+      echo -e "  ${B}│${N}  证书文件: ${D}${cf}${N}"
+    fi
+    if [[ -n "$kf" ]]; then
+      echo -e "  ${B}│${N}  私钥文件: ${D}${kf}${N}"
+    fi
+    echo -e "  ${B}└───────────────────────────────────────────────────────────────┘${N}"
+    echo
+    echo -e "  ${B}── [ 🌐 域名与反向代理 ] ───────────────────────────────────────${N}"
+    echo -e "   ${Y} 1.${N} 设置 / 修改面板绑定域名 (用于反代或直接访问)"
+    echo -e "   ${Y} 2.${N} ${G}一键配置 Caddy 自动化反代 (母机 443 免端口纯净访问)${N}"
+    echo
+    echo -e "  ${B}── [ 🔒 SSL / HTTPS 证书申请与管理 ] ──────────────────────────${N}"
+    echo -e "   ${Y} 3.${N} 绑定已有自定义证书路径 (.crt / .key 文件)"
+    echo -e "   ${Y} 4.${N} 一键申请 ACME 免费证书 (HTTP-80 Standalone 模式)"
+    echo -e "   ${Y} 5.${N} 一键申请 ACME 免费证书 (Cloudflare DNS API 零端口模式)"
+    echo -e "   ${Y} 6.${N} 深度检测当前证书有效性与到期天数"
+    echo -e "   ${Y} 7.${N} ${R}清除 SSL 配置 (安全降级为 HTTP 明文直连)${N}"
+    echo
+    echo -e "   ${R} 0.${N} 返回主菜单"
+    echo -e "  ${B}────────────────────────────────────────────────────────────────${N}"
+    echo -ne "  ${W}👉 请输入选项 [0-7]:${N} "
+    read -r sub_ch
 
     case "${sub_ch:-}" in
       1) set_domain; pause ;;
-      2) bind_custom_ssl; pause ;;
-      3) acme_standalone; pause ;;
-      4) acme_cf_dns; pause ;;
-      5) setup_caddy; pause ;;
+      2) setup_caddy; pause ;;
+      3) bind_custom_ssl; pause ;;
+      4) acme_standalone; pause ;;
+      5) acme_cf_dns; pause ;;
       6) inspect_ssl; pause ;;
       7) clear_ssl; pause ;;
       0) return ;;
@@ -695,27 +748,36 @@ ssl_menu() {
 menu() {
   while true; do
     clear
-    echo -e "${B}  fanout${N}  ${D}VPN Gate 出口扇出网关${N}"
+    echo
+    echo -e "  ${B}╔═══════════════════════════════════════════════════════════════╗${N}"
+    echo -e "  ${B}║${N}       ${W}FANOUT PRO${N}  ${D}•  VPN Gate 住宅多出口扇出网关管理${N}         ${B}║${N}"
+    echo -e "  ${B}╚═══════════════════════════════════════════════════════════════╝${N}"
     show_info
-    echo -e "${D}  ─────────────────────────────${N}"
-    echo "   1) 启动          2) 停止"
-    echo "   3) 重启          4) 查看日志"
     echo
-    echo "   5) 隧道列表      6) 连接信息"
+    echo -e "  ${B}── [ ⚡ 服务控制 ] ──────────────────────────────────────────────${N}"
+    echo -e "   ${Y} 1.${N} 启动服务                    ${Y} 2.${N} 停止服务"
+    echo -e "   ${Y} 3.${N} 重启服务                    ${Y} 4.${N} 查看实时运行日志"
     echo
-    echo "   7) 改端口        8) 改口令"
-    echo "   9) 改访问路径   10) 域名与 SSL 设置"
+    echo -e "  ${B}── [ 🌐 节点与隧道 ] ───────────────────────────────────────────${N}"
+    echo -e "   ${Y} 5.${N} 活跃隧道列表                ${Y} 6.${N} 详细连接与质量信息"
     echo
-    echo "  11) 开机自启开关 12) 更新"
-    echo "  13) 卸载         14) 项目开源地址"
-    echo "   0) 退出"
-    echo -e "${D}  ─────────────────────────────${N}"
-    read -rp "  选择: " choice
+    echo -e "  ${B}── [ ⚙️ 面板与安全配置 ] ───────────────────────────────────────${N}"
+    echo -e "   ${Y} 7.${N} 修改面板监听端口            ${Y} 8.${N} 修改管理访问口令"
+    echo -e "   ${Y} 9.${N} 修改路径前缀 (防扫描探测)   ${Y}10.${N} ${G}域名与 SSL (HTTPS) 设置${N}"
+    echo
+    echo -e "  ${B}── [ 🛠️ 系统运维 ] ─────────────────────────────────────────────${N}"
+    echo -e "   ${Y}11.${N} 开机自启开关                ${Y}12.${N} 检查更新 / 升级版本"
+    echo -e "   ${Y}13.${N} 卸载 Fanout                 ${Y}14.${N} 项目开源主页"
+    echo
+    echo -e "   ${R} 0.${N} 退出管理脚本"
+    echo -e "  ${B}────────────────────────────────────────────────────────────────${N}"
+    echo -ne "  ${W}👉 请输入选项 [0-14]:${N} "
+    read -r choice
 
     case "$choice" in
-      1) svc_start   && echo -e "\n  ${G}已启动${N}"; pause ;;
-      2) svc_stop    && echo -e "\n  ${Y}已停止${N}"; pause ;;
-      3) svc_restart && echo -e "\n  ${G}已重启${N}"; pause ;;
+      1) svc_start   && echo -e "\n  ${G}✅ 服务已启动${N}"; pause ;;
+      2) svc_stop    && echo -e "\n  ${Y}⚠️ 服务已停止${N}"; pause ;;
+      3) svc_restart && echo -e "\n  ${G}✅ 服务已重启${N}"; pause ;;
       4) echo; svc_logs 40; pause ;;
       5) list_tunnels; pause ;;
       6) show_info; pause ;;
@@ -726,10 +788,10 @@ menu() {
       11)
         if svc_is_enabled; then
           svc_disable
-          echo -e "\n  ${Y}已关闭开机自启${N}"
+          echo -e "\n  ${Y}⚠️ 已关闭开机自启${N}"
         else
           svc_enable
-          echo -e "\n  ${G}已开启开机自启${N}"
+          echo -e "\n  ${G}✅ 已开启开机自启${N}"
         fi
         pause ;;
       12) do_update; pause ;;

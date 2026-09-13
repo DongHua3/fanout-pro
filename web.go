@@ -244,6 +244,10 @@ textarea:focus{outline:none;border-color:var(--accent)}
 .cic-acts{display:flex;gap:6px;align-items:center}
 .btn-start-core-exit{font-size:11px;padding:3px 8px;border-radius:3px;background:var(--accent);border:1px solid var(--accent);color:#0b0e12;font-weight:600;cursor:pointer}
 
+/* 系统设置卡片 */
+.set-card{background:#11151c;border:1px solid var(--line);border-radius:6px;padding:12px 14px}
+.set-card-title{font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px;margin-bottom:10px}
+
 /* 全节点大厅 */
 .sheet-wide{max-width:960px!important;width:95vw}
 .nex-controls{padding:10px 16px;border-bottom:1px solid var(--line);background:#13171e;display:flex;flex-direction:column;gap:8px}
@@ -680,55 +684,45 @@ textarea:focus{outline:none;border-color:var(--accent)}
 <div class="modal" id="settings">
   <div class="sheet">
     <div class="head">
-      <h2>设置</h2>
+      <h2>⚙️ 系统与面板设置</h2>
       <span class="spacer"></span>
       <button class="icon" data-close="settings" title="关闭">
         <svg viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
       </button>
     </div>
-    <div class="body">
-      <label class="f"><span>访问口令</span>
-        <input id="setPw" type="password" spellcheck="false" autocomplete="new-password" placeholder="留空则不改"></label>
-      <div class="hint">改完只影响新登录，当前这个浏览器不会被踢下线。</div>
+    <div class="body" style="display:flex;flex-direction:column;gap:12px">
+      <!-- 卡片 1: 访问安全与路径 -->
+      <div class="set-card">
+        <div class="set-card-title">🔑 访问安全与路径</div>
+        <label class="f"><span>访问口令</span>
+          <input id="setPw" type="password" spellcheck="false" autocomplete="new-password" placeholder="留空则保持原口令不变"></label>
+        <div class="hint">修改后仅对新登录会话生效，当前浏览器不会被强制退出。</div>
 
-      <label class="f" style="margin-top:16px"><span>访问路径</span>
-        <input id="setPath" type="text" spellcheck="false" placeholder="留空则去掉路径前缀"></label>
-      <div class="hint" id="setPathHint">界面挂在这个路径下，扫端口的探不到。只能用字母数字和 - _。</div>
-
-      <label class="f" style="margin-top:16px"><span>节点后端</span>
-        <select id="setBackend"></select></label>
-      <div class="hint" id="setBackendHint">节点从哪来。装了 3x-ui 或 xray-cf-lite 就能直接接管，都没有就用自建。</div>
-
-      <div class="setrow">
-        <label class="f" style="margin:0"><span>监听端口</span>
-          <input id="setPort" type="text" inputmode="numeric" spellcheck="false"></label>
-        <label class="f" style="margin:0"><span>本地监听地址</span>
-          <select id="setListen">
-            <option value="0.0.0.0">所有网卡（0.0.0.0）</option>
-            <option value="127.0.0.1">仅本机（127.0.0.1）</option>
-          </select></label>
+        <label class="f" style="margin-top:12px"><span>访问路径前缀</span>
+          <input id="setPath" type="text" spellcheck="false" placeholder="留空则去掉路径前缀"></label>
+        <div class="hint" id="setPathHint">挂在自定义路径下可隐藏面板，防全网探针扫描。只能用字母数字和 - _。</div>
       </div>
-      <div class="hint bad" id="setPortHint">改端口、监听地址或协议会切换监听，保存后要用新地址重新打开界面。</div>
 
-      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
-        <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px">🌐 域名与 HTTPS (SSL)</div>
-        <label class="f"><span>面板域名</span>
-          <input id="setDomain" type="text" spellcheck="false" placeholder="例如 panel.example.com（可选）"></label>
-        <div class="hint">绑定域名后，节点分享链接和订阅源将优先使用此域名。</div>
+      <!-- 卡片 2: 域名与 SSL (HTTPS) -->
+      <div class="set-card">
+        <div class="set-card-title">🌐 域名与 HTTPS (SSL) 加密</div>
+        <label class="f"><span>面板绑定域名</span>
+          <input id="setDomain" type="text" spellcheck="false" placeholder="例如 panel.example.com（可选，留空使用 IP）"></label>
+        <div class="hint">绑定域名后，节点分享链接和 /sub 聚合订阅源将优先使用此域名。</div>
 
         <label class="f" style="margin-top:12px"><span>SSL 模式</span>
           <select id="setSSLMode">
-            <option value="none">外部反代 / HTTP（纯域名直连或外部 CF CDN / 反代）</option>
-            <option value="custom">原生自定义 SSL 证书（面板自身原生 HTTPS 监听）</option>
-            <option value="caddy">一键 Caddy 自动化反代（母机 443 免端口纯净访问）</option>
+            <option value="none">🌐 外部反代 / HTTP（纯域名直连或外部 CF CDN / 反代）</option>
+            <option value="custom">🔒 原生自定义 SSL 证书（面板原生 HTTPS 监听）</option>
+            <option value="caddy">⚡ 一键 Caddy 自动化反代（母机 443 免端口纯净访问）</option>
           </select></label>
 
-        <div id="setSSLCertWrap" style="margin-top:12px;display:none">
+        <div id="setSSLCertWrap" style="margin-top:12px;display:none;background:#090c10;border:1px solid var(--line);border-radius:6px;padding:12px">
           <label class="f"><span>证书文件绝对路径 (Cert / PEM)</span>
             <input id="setCertFile" type="text" spellcheck="false" placeholder="/etc/ssl/cert.pem 或 acme.sh 证书路径"></label>
           <label class="f" style="margin-top:8px"><span>私钥文件绝对路径 (Key)</span>
             <input id="setKeyFile" type="text" spellcheck="false" placeholder="/etc/ssl/key.pem 或 acme.sh 私钥路径"></label>
-          <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+          <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
             <button type="button" class="btn-subtle" id="setCertCheck">🔍 检测证书有效性</button>
             <span id="setCertStatus" style="font-size:11px;color:var(--dim)"></span>
           </div>
@@ -736,27 +730,47 @@ textarea:focus{outline:none;border-color:var(--accent)}
         <div class="hint" style="margin-top:8px">也可在终端使用 <code>f ssl</code> 一键申请免费证书，或 <code>f caddy</code> 部署 443 自动化反代。</div>
       </div>
 
-      <div class="updsec">
+      <!-- 卡片 3: 监听与后端模式 -->
+      <div class="set-card">
+        <div class="set-card-title">⚙️ 网络监听与后端模式</div>
+        <label class="f"><span>节点后端</span>
+          <select id="setBackend"></select></label>
+        <div class="hint" id="setBackendHint">节点从哪来。装了 3x-ui 或 xray-cf-lite 就能直接接管，都没有就用自建。</div>
+
+        <div class="setrow" style="margin-top:12px">
+          <label class="f" style="margin:0"><span>监听端口</span>
+            <input id="setPort" type="text" inputmode="numeric" spellcheck="false"></label>
+          <label class="f" style="margin:0"><span>本地监听地址</span>
+            <select id="setListen">
+              <option value="0.0.0.0">所有网卡（0.0.0.0）</option>
+              <option value="127.0.0.1">仅本机（127.0.0.1）</option>
+            </select></label>
+        </div>
+        <div class="hint bad" id="setPortHint" style="margin-top:8px">改端口、监听地址或协议会切换监听，保存后要用新地址重新打开界面。</div>
+      </div>
+
+      <!-- 卡片 4: 版本与更新 -->
+      <div class="set-card" style="margin-bottom:0">
+        <div class="set-card-title">🚀 系统版本与维护</div>
         <div class="updrow">
-          <div class="updver">版本 <b id="updCur">-</b><span id="updLatest"></span></div>
+          <div class="updver">当前版本 <b id="updCur">-</b><span id="updLatest"></span></div>
           <span class="spacer"></span>
           <button id="updCheck">检查更新</button>
           <button class="primary" id="updApply" hidden>更新到 <span id="updApplyVer"></span></button>
         </div>
-        <div class="updnotes" id="updNotes" hidden></div>
-      </div>
-
-      <div class="updsec" style="display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:11px;color:var(--dim)">当前登录会话</span>
-        <button type="button" class="btn-subtle" id="settingsLogoutBtn" style="color:var(--bad)" title="退出当前登录会话">
-          🚪 退出登录
-        </button>
+        <div class="updnotes" id="updNotes" hidden style="margin-top:8px"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--line)">
+          <span style="font-size:11px;color:var(--dim)">当前登录会话</span>
+          <button type="button" class="btn-subtle" id="settingsLogoutBtn" style="color:var(--bad)" title="退出当前登录会话">
+            🚪 退出登录
+          </button>
+        </div>
       </div>
     </div>
     <div class="foot">
       <span class="spacer"></span>
       <button data-close="settings">取消</button>
-      <button class="primary" id="setSave">保存</button>
+      <button class="primary" id="setSave">保存生效</button>
     </div>
   </div>
 </div>
