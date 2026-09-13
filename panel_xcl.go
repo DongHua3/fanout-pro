@@ -404,6 +404,10 @@ func (x *XCL) CloneToTunnels(templateID int, hosts []string, tunnels []*Tunnel) 
 	return nil, errXCLReadOnly
 }
 
+func (x *XCL) CloneToTunnelWithPort(templateID int, host string, port int, tunnels []*Tunnel) (int, error) {
+	return 0, errXCLReadOnly
+}
+
 func (x *XCL) DeleteInbounds(ids []int, tunnels []*Tunnel) error {
 	return errXCLReadOnly
 }

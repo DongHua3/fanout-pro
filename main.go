@@ -810,17 +810,28 @@ func apiXUIClone(m *Manager) http.HandlerFunc {
 			return
 		}
 
+		reqPort, _ := strconv.Atoi(r.URL.Query().Get("port"))
 		x, err := openPanel()
 		if err != nil {
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
 			return
 		}
-		ports, err := x.CloneToTunnels(id, hosts, tunnels)
-		invalidateInbounds()
-		if err != nil {
-			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "created": ports})
-			return
+		var ports []int
+		if len(hosts) == 1 && reqPort > 0 {
+			p, err := x.CloneToTunnelWithPort(id, hosts[0], reqPort, tunnels)
+			if err != nil {
+				writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+				return
+			}
+			ports = []int{p}
+		} else {
+			ports, err = x.CloneToTunnels(id, hosts, tunnels)
+			if err != nil {
+				writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "created": ports})
+				return
+			}
 		}
+		invalidateInbounds()
 		writeJSON(w, http.StatusOK, map[string]any{"created": ports})
 	}
 }

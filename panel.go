@@ -28,6 +28,7 @@ type Panel interface {
 	ResyncOutbound(t *Tunnel, tunnels []*Tunnel) error
 
 	CloneToTunnels(templateID int, hosts []string, tunnels []*Tunnel) ([]int, error)
+	CloneToTunnelWithPort(templateID int, host string, port int, tunnels []*Tunnel) (int, error)
 	DeleteInbounds(ids []int, tunnels []*Tunnel) error
 
 	// CreateInbound 新建一个入站。自建模式写自己的库并重建 Xray 配置，

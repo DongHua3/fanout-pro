@@ -208,6 +208,13 @@ textarea:focus{outline:none;border-color:var(--accent)}
 .chip-unbind{padding:1px 5px;background:transparent;border:none;border-left:1px solid var(--line);color:var(--dim);cursor:pointer;font-size:10px}
 .chip-unbind:hover{color:var(--bad);background:rgba(194,84,80,.15)}
 
+.chip.none-btn{border-style:dashed;cursor:pointer;background:rgba(74,158,218,0.08);color:var(--accent);transition:all .15s}
+.chip.none-btn:hover{border-color:var(--accent);background:rgba(74,158,218,0.2)}
+.bmode-item{border:1px solid var(--line);border-radius:6px;padding:12px;background:#0e1116;cursor:pointer;transition:border-color .15s}
+.bmode-item:hover{border-color:var(--accent)}
+.bmode-item.active{border-color:var(--accent);background:rgba(74,158,218,0.06)}
+.bmode-head{display:flex;align-items:center;gap:8px;font-size:13px}
+
 .unbind-bar{display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(201,144,58,.1);border:1px solid rgba(201,144,58,.3);border-radius:4px;margin-bottom:12px}
 .ub-hint{font-size:12px;color:var(--text);flex:1}
 .btn-unbind{background:var(--bad);border-color:var(--bad);color:#fff;font-weight:600;font-size:12px;padding:4px 10px;border-radius:4px;cursor:pointer}
@@ -614,6 +621,57 @@ textarea:focus{outline:none;border-color:var(--accent)}
   </div>
 </div>
 
+<div class="modal" id="bindExitModal">
+  <div class="sheet">
+    <div class="head">
+      <h2 id="bem-title">为出口绑定节点</h2>
+      <span class="spacer"></span>
+      <button class="icon" data-close="bindExitModal" title="关闭">
+        <svg viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+    <div class="body">
+      <div id="bem-target" style="padding:8px 12px;background:#0e1116;border:1px solid var(--line);border-radius:4px;font-size:12px;margin-bottom:14px"></div>
+
+      <div class="bmode-item active" id="bmode-clone-card">
+        <div class="bmode-head">
+          <input type="radio" name="bmode" id="bmode-radio-clone" checked>
+          <strong>⚡ 复制原节点并绑定 (推荐 · 原节点继续直连)</strong>
+        </div>
+        <p class="hint" style="margin:6px 0 10px">基于现有节点复制一套全新入站（相同密码/UUID/传输协议），<b>原节点继续留作母机直连</b>，两者互不影响！</p>
+        <div id="bmode-clone-fields">
+          <label class="f"><span>选择模板节点</span>
+            <select id="bem-tpl-node"></select>
+          </label>
+          <label class="f"><span>分配新端口（专走此出口）</span>
+            <input type="text" id="bem-port" placeholder="输入或点击下方推荐端口" inputmode="numeric">
+            <div id="bem-port-status" class="port-status"></div>
+            <div class="port-recom-wrap" style="margin-top:6px">
+              <div class="port-recom-title">💡 推荐空闲端口（点击一键填入）：</div>
+              <div class="port-chips" id="bem-port-chips"></div>
+            </div>
+          </label>
+          <button class="primary" id="bem-btn-clone" style="width:100%;margin-top:8px">⚡ 立即复制并绑定至该出口</button>
+        </div>
+      </div>
+
+      <div class="bmode-item" id="bmode-move-card" style="margin-top:12px">
+        <div class="bmode-head">
+          <input type="radio" name="bmode" id="bmode-radio-move">
+          <strong>🔀 直接转移现有直连节点</strong>
+        </div>
+        <p class="hint" style="margin:6px 0 10px">将现有的某个直连节点直接改绑至此出口（⚠️ 注意：该节点将不再直连，流量转向该出口）。</p>
+        <div id="bmode-move-fields" style="display:none">
+          <label class="f"><span>选择要转移改绑的节点</span>
+            <select id="bem-direct-node"></select>
+          </label>
+          <button class="primary" id="bem-btn-move" style="width:100%;margin-top:8px">🔀 转移改绑至该出口</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -808,7 +866,11 @@ function renderExits(){
           + '<button type="button" class="chip-unbind" data-unbind-tag="' + esc(i.tag)
           +   '" data-unbind-port="' + i.port + '" title="解除绑定，恢复母机原生直连">✖</button>'
           + '</span>').join('')
-      : '<span class="chip none">无节点</span>';
+      : '<button type="button" class="chip none-btn" data-bind-slot="' + e.slot
+          + '" data-bind-host="' + esc(e.host)
+          + '" data-bind-ip="' + esc(label)
+          + '" data-bind-region="' + esc(e.region || '')
+          + '" title="点击为该出口绑定节点（支持克隆复制原节点保留直连，或转移绑定）">➕ 无节点 (点击绑定)</button>';
     const err = e.status === 'failed' && e.err
       ? '<div class="errline" title="' + esc(e.err) + '">' + esc(e.err) + '</div>' : '';
     const place = e.country && e.country.toUpperCase() !== (e.region || '').toUpperCase()
@@ -1204,6 +1266,152 @@ $('#stopall').onclick = async e => {
   }
   poll();
 };
+
+// ---- 为出口绑定节点（支持复制原节点直连保留，或转移直连） ----
+let curBindExit = null;
+
+document.addEventListener('click', e => {
+  const btn = e.target.closest('[data-bind-slot]');
+  if(btn){
+    openBindExitModal({
+      slot: btn.dataset.bindSlot,
+      host: btn.dataset.bindHost,
+      ip: btn.dataset.bindIp,
+      region: btn.dataset.bindRegion
+    });
+  }
+});
+
+function openBindExitModal(target){
+  curBindExit = target;
+  $('#bem-target').innerHTML = '目标出口：<b>' + esc(target.ip) + '</b> (' + esc(target.region || '—') + ' · ' + esc(target.host) + ')';
+
+  // 收集可用的所有模板节点（包含 direct 和已绑定 exits 的节点）
+  const allNodes = [];
+  (view.direct || []).forEach(i => allNodes.push(i));
+  (view.exits || []).forEach(ex => (ex.inbounds || []).forEach(i => allNodes.push(i)));
+
+  // 填充模板节点下拉
+  const tplSel = $('#bem-tpl-node');
+  if(allNodes.length === 0){
+    tplSel.innerHTML = '<option value="">(暂无可用模板节点，请先新建节点)</option>';
+    $('#bem-btn-clone').disabled = true;
+  } else {
+    tplSel.innerHTML = allNodes.map(i =>
+      '<option value="' + i.id + '">[' + esc(i.protocol) + '] :' + i.port + ' · ' + esc(i.remark || i.protocol) + '</option>'
+    ).join('');
+    $('#bem-btn-clone').disabled = false;
+  }
+
+  // 填充转移直连下拉
+  const directSel = $('#bem-direct-node');
+  const directNodes = view.direct || [];
+  if(directNodes.length === 0){
+    directSel.innerHTML = '<option value="">(暂无直连节点可供转移)</option>';
+    $('#bem-btn-move').disabled = true;
+  } else {
+    directSel.innerHTML = directNodes.map(i =>
+      '<option value="' + i.id + '" data-tag="' + esc(i.tag) + '" data-port="' + i.port + '">[' + esc(i.protocol) + '] :' + i.port + ' · ' + esc(i.remark || i.protocol) + '</option>'
+    ).join('');
+    $('#bem-btn-move').disabled = false;
+  }
+
+  // 初始化模式：默认克隆
+  switchBindMode('clone');
+
+  // 计算推荐端口
+  const tplPort = allNodes.length > 0 ? allNodes[0].port : 2087;
+  let nextPort = tplPort + 1;
+  const occupied = new Set();
+  allNodes.forEach(i => occupied.add(i.port));
+  while(occupied.has(nextPort) && nextPort < 65535){
+    nextPort++;
+  }
+  $('#bem-port').value = nextPort < 65535 ? nextPort : '';
+  renderPortRecommendations('bem-port-chips', 'bem-port-status', 'bem-port', 'bem-btn-clone', 0);
+
+  openModal('bindExitModal');
+}
+
+function switchBindMode(mode){
+  if(mode === 'clone'){
+    $('#bmode-radio-clone').checked = true;
+    $('#bmode-radio-move').checked = false;
+    $('#bmode-clone-card').classList.add('active');
+    $('#bmode-move-card').classList.remove('active');
+    $('#bmode-clone-fields').style.display = 'block';
+    $('#bmode-move-fields').style.display = 'none';
+  } else {
+    $('#bmode-radio-clone').checked = false;
+    $('#bmode-radio-move').checked = true;
+    $('#bmode-clone-card').classList.remove('active');
+    $('#bmode-move-card').classList.add('active');
+    $('#bmode-clone-fields').style.display = 'none';
+    $('#bmode-move-fields').style.display = 'block';
+  }
+}
+
+document.addEventListener('click', e => {
+  const card = e.target.closest('.bmode-item');
+  if(!card) return;
+  if(card.id === 'bmode-clone-card' && !e.target.closest('#bmode-clone-fields')){
+    switchBindMode('clone');
+  } else if(card.id === 'bmode-move-card' && !e.target.closest('#bmode-move-fields')){
+    switchBindMode('move');
+  }
+});
+
+document.addEventListener('click', async e => {
+  if(e.target.closest('#bem-btn-clone')){
+    const btn = $('#bem-btn-clone');
+    if(!curBindExit) return;
+    const tplId = $('#bem-tpl-node').value;
+    if(!tplId){
+      toast('请选择模板节点', true);
+      return;
+    }
+    const port = parseInt($('#bem-port').value, 10) || 0;
+    btn.disabled = true;
+    try{
+      const url = '/api/xui/clone?id=' + encodeURIComponent(tplId)
+        + '&hosts=' + encodeURIComponent(curBindExit.host)
+        + (port > 0 ? '&port=' + port : '');
+      const res = await api(url, {method:'POST'});
+      const newPort = (res.created && res.created.length) ? res.created[0] : port;
+      toast('🎉 已复制原节点并绑定到出口！(端口 :' + newPort + ')');
+      closeModal('bindExitModal');
+      poll();
+    }catch(err){
+      toast(err.message, true);
+    }
+    btn.disabled = false;
+    return;
+  }
+
+  if(e.target.closest('#bem-btn-move')){
+    const btn = $('#bem-btn-move');
+    if(!curBindExit) return;
+    const sel = $('#bem-direct-node');
+    const opt = sel.options[sel.selectedIndex];
+    if(!opt || !opt.dataset.tag){
+      toast('请选择要转移的节点', true);
+      return;
+    }
+    btn.disabled = true;
+    try{
+      await api('/api/xui/bind?tag=' + encodeURIComponent(opt.dataset.tag)
+        + '&port=' + encodeURIComponent(opt.dataset.port || '')
+        + '&host=' + encodeURIComponent(curBindExit.host), {method:'POST'});
+      toast('已转移改绑至该出口');
+      closeModal('bindExitModal');
+      poll();
+    }catch(err){
+      toast(err.message, true);
+    }
+    btn.disabled = false;
+    return;
+  }
+});
 
 // ---- 节点详情 ----
 let curDetail = null;

@@ -56,6 +56,9 @@ func (n *Native) apply(tunnels []*Tunnel) error {
 	if err != nil {
 		return err
 	}
+	if n.proc == nil || n.proc.bin == "" {
+		return n.store.save(n.dir)
+	}
 	if err := verifyXrayConfig(n.proc.bin, path); err != nil {
 		return err
 	}
@@ -275,6 +278,63 @@ func (n *Native) CloneToTunnels(templateID int, hosts []string, tunnels []*Tunne
 		return created, err
 	}
 	return created, nil
+}
+
+// CloneToTunnelWithPort 以某个入站为模板，复制一个新入站并绑定到指定出口。
+// 若指定了有效且空闲的 port，则使用该端口；否则自动分配一个随机空闲端口。
+func (n *Native) CloneToTunnelWithPort(templateID int, host string, port int, tunnels []*Tunnel) (int, error) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+
+	tpl := n.store.byID(templateID)
+	if tpl == nil {
+		return 0, fmt.Errorf("模板入站 %d 不存在", templateID)
+	}
+
+	var target *Tunnel
+	for _, t := range tunnels {
+		if (t.Node.HostName == host || sanitizeTag(t.Node.HostName) == sanitizeTag(host)) && t.Status == "up" {
+			target = t
+			break
+		}
+	}
+	if target == nil {
+		return 0, fmt.Errorf("目标出口 %s 未连通或不存在", host)
+	}
+
+	used := n.store.usedPorts()
+	targetPort := port
+	if targetPort <= 0 || used[targetPort] || !portAvailable(targetPort) {
+		var err error
+		targetPort, err = freeRandomPort(used)
+		if err != nil {
+			return 0, err
+		}
+	}
+	used[targetPort] = true
+
+	clone := &nativeInbound{
+		ID:       n.store.NextID,
+		Port:     targetPort,
+		Protocol: tpl.Protocol,
+		Network:  tpl.Network,
+		Path:     tpl.Path,
+		Host:     tpl.Host,
+		Security: tpl.Security,
+		TLS:      tpl.TLS,
+		Reality:  tpl.Reality,
+		Remark:   cloneRemark(tpl.Remark, exitLabel(target)),
+		Enable:   true,
+		Clients:  append([]nativeClient(nil), tpl.Clients...),
+		BoundTo:  sanitizeTag(target.Node.HostName),
+	}
+	n.store.NextID++
+	n.store.Inbounds = append(n.store.Inbounds, clone)
+
+	if err := n.apply(tunnels); err != nil {
+		return 0, err
+	}
+	return targetPort, nil
 }
 
 func (n *Native) DeleteInbounds(ids []int, tunnels []*Tunnel) error {

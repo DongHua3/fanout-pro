@@ -806,6 +806,71 @@ func (x *XUI) CloneToTunnels(templateID int, hosts []string, tunnels []*Tunnel) 
 	return created, nil
 }
 
+// CloneToTunnelWithPort 以某个入站为模板，复制一个新入站并绑定到指定出口。
+// 若指定了有效且空闲的 port，则使用该端口；否则自动分配一个随机空闲端口。
+func (x *XUI) CloneToTunnelWithPort(templateID int, host string, port int, tunnels []*Tunnel) (int, error) {
+	raw, err := x.rawInbound(templateID)
+	if err != nil {
+		return 0, err
+	}
+
+	var targetTunnel *Tunnel
+	for _, t := range tunnels {
+		if (t.Node.HostName == host || sanitizeTag(t.Node.HostName) == sanitizeTag(host)) && t.Status == "up" {
+			targetTunnel = t
+			break
+		}
+	}
+	if targetTunnel == nil {
+		return 0, fmt.Errorf("目标出口 %s 未连通或不存在", host)
+	}
+
+	used, err := x.usedPorts()
+	if err != nil {
+		return 0, err
+	}
+
+	targetPort := port
+	if targetPort <= 0 || used[targetPort] || !portAvailable(targetPort) {
+		targetPort, err = freeRandomPort(used)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	emails, err := clientEmails(raw)
+	if err != nil {
+		return 0, err
+	}
+
+	clone, err := cloneInboundPayload(raw, targetPort, targetTunnel)
+	if err != nil {
+		return 0, err
+	}
+	newID, err := x.addInbound(clone)
+	if err != nil {
+		return 0, fmt.Errorf("复制到端口 %d 失败: %w", targetPort, err)
+	}
+	if len(emails) > 0 {
+		if err := x.attachClients(emails, newID); err != nil {
+			return 0, err
+		}
+	}
+
+	newRaw, err := x.rawInbound(newID)
+	if err != nil {
+		return 0, fmt.Errorf("读取端口 %d 的入站标签失败: %w", targetPort, err)
+	}
+	newTag, _ := newRaw["tag"].(string)
+	if newTag == "" {
+		newTag = inboundTagOf(targetPort, raw)
+	}
+	if err := x.Bind(newTag, targetTunnel.Node.HostName, tunnels); err != nil {
+		return 0, fmt.Errorf("端口 %d 绑定失败: %w", targetPort, err)
+	}
+	return targetPort, nil
+}
+
 // rawInbound 取回某个入站的原始 JSON，用作复制模板。
 func (x *XUI) rawInbound(id int) (map[string]any, error) {
 	obj, err := x.get("panel/api/inbounds/list")

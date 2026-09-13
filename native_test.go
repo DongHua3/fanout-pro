@@ -195,3 +195,62 @@ func TestShareLinkCarriesSecurityParams(t *testing.T) {
 		t.Errorf("自签 TLS 链接要带证书指纹: %s", tl)
 	}
 }
+
+func TestCloneToTunnelWithPortNative(t *testing.T) {
+	tmp := t.TempDir()
+	n := &Native{
+		dir: tmp,
+		store: &nativeStore{
+			NextID: 2,
+			Inbounds: []*nativeInbound{
+				{
+					ID:       1,
+					Port:     2087,
+					Protocol: "vless",
+					Network:  "tcp",
+					Enable:   true,
+					Clients:  []nativeClient{{ID: "uuid-test", Email: "test@fanout"}},
+				},
+			},
+		},
+	}
+
+	tunnels := []*Tunnel{
+		{
+			Slot:   1,
+			Port:   38614,
+			Status: "up",
+			Node:   Node{HostName: "kr-vpn-test"},
+		},
+	}
+
+	// 复制到指定端口 2088
+	port, err := n.CloneToTunnelWithPort(1, "kr-vpn-test", 2088, tunnels)
+	if err != nil {
+		t.Fatalf("CloneToTunnelWithPort 失败: %v", err)
+	}
+	if port != 2088 {
+		t.Errorf("返回端口 = %d, want 2088", port)
+	}
+
+	// 原入站 2087 必须保持直连 (BoundTo 为空)
+	orig := n.store.byID(1)
+	if orig == nil || orig.BoundTo != "" {
+		t.Errorf("原入站必须继续保持直连，实际 BoundTo=%q", orig.BoundTo)
+	}
+
+	// 新入站必须绑定到 kr-vpn-test
+	cloned := n.store.byID(2)
+	if cloned == nil {
+		t.Fatal("克隆生成的新入站 2 未找到")
+	}
+	if cloned.Port != 2088 {
+		t.Errorf("新入站端口 = %d, want 2088", cloned.Port)
+	}
+	if cloned.BoundTo != "kr-vpn-test" {
+		t.Errorf("新入站 BoundTo = %q, want kr-vpn-test", cloned.BoundTo)
+	}
+	if len(cloned.Clients) != 1 || cloned.Clients[0].ID != "uuid-test" {
+		t.Errorf("新入站未正确继承客户端配置: %+v", cloned.Clients)
+	}
+}
