@@ -641,7 +641,11 @@ func shareLink(ib *nativeInbound, c nativeClient, host string) string {
 		q.Set("flow", c.Flow)
 	}
 
-	frag := url.PathEscape(ib.Remark)
+	remark := ib.Remark
+	if ib.BoundTo == "" && !strings.Contains(remark, "直连") {
+		remark = strings.TrimSpace(remark + " [直连]")
+	}
+	frag := url.PathEscape(remark)
 
 	switch ib.Protocol {
 	case "trojan":

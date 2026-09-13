@@ -75,7 +75,7 @@ Xray 到 `/var/lib/fanout/bin/`，装了则跳过，入站交给面板管。
 
 ```bash
 apk add bash curl
-bash <(curl -fsSL https://raw.githubusercontent.com/byJoey/fanout/main/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/DongHua3/fanout-pro/main/install.sh)
 ```
 
 另外 fanout 要在 netns 里跑 openvpn，**宿主必须放开 `/dev/net/tun`**。

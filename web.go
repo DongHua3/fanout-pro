@@ -294,7 +294,7 @@ textarea:focus{outline:none;border-color:var(--accent)}
     <a href="https://t.me/+ft-zI76oovgwNmRh" target="_blank" rel="noopener">交流群</a>
     <a href="https://youtube.com/@joeyblog" target="_blank" rel="noopener">油管</a>
     <a href="https://joeyblog.net" target="_blank" rel="noopener">博客</a>
-    <a href="https://github.com/byJoey/fanout" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://github.com/DongHua3/fanout-pro" target="_blank" rel="noopener">GitHub</a>
   </nav>
 </header>
 
@@ -1960,7 +1960,7 @@ $('#exportAll').onclick = async () => {
   $('#excount').textContent = '';
   openModal('export');
   try{
-    const d = await api('/api/xui/links?ids=' + ids.join(','));
+    const d = await api('/api/xui/links');
     $('#exbox').value = (d.links || []).join('\n');
     $('#excount').textContent = (d.links || []).length + ' 条 (含母机直连与全部出口)';
   }catch(err){ $('#exbox').value = '导出失败: ' + err.message; }
