@@ -102,7 +102,7 @@ show_info() {
   bp=$(cat "$WORK_DIR/basepath" 2>/dev/null || echo "")
   pw=$(cat "$WORK_DIR/password" 2>/dev/null || echo "-")
   ip=$(public_ip)
-  ver=$("$BIN" -version 2>/dev/null || echo 'v2.0.6')
+  ver=$("$BIN" -version 2>/dev/null || echo 'v2.0.7')
 
   dom=$(sed -n 's/.*"domain"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null || true)
   cf=$(sed -n 's/.*"cert_file"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null || true)

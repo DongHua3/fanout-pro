@@ -304,23 +304,56 @@ const loginHTML = `<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>fanout PRO - 登录控制台</title>
+<script>
+(function(){
+  try{
+    var t = localStorage.getItem('fanout_theme');
+    if(!t){
+      t = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    }
+    document.documentElement.className = t === 'light' ? 'light' : 'dark';
+  }catch(e){}
+})();
+</script>
 <style>
-:root {
+:root, html.dark {
   --bg-canvas: #0b0f19;
-  --bg-card: #111827;
+  --bg-card: rgba(17, 24, 39, 0.9);
   --bg-surface: #172033;
   --bg-input: #0e1524;
-  --border-card: #1f293d;
+  --border-card: rgba(255, 255, 255, 0.08);
   --border-focus: #0284c7;
   --text-main: #f1f5f9;
   --text-muted: #94a3b8;
   --accent-blue: #0284c7;
   --status-danger-bg: rgba(239, 68, 68, 0.12);
   --status-danger-border: rgba(239, 68, 68, 0.32);
+  --status-danger-text: #fca5a5;
+  --card-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.04);
   --radius-lg: 14px;
   --radius-md: 8px;
   --radius-sm: 6px;
 }
+
+html.light {
+  --bg-canvas: #f8fafc;
+  --bg-card: rgba(255, 255, 255, 0.95);
+  --bg-surface: #f1f5f9;
+  --bg-input: #ffffff;
+  --border-card: rgba(15, 23, 42, 0.1);
+  --border-focus: #0284c7;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --accent-blue: #0284c7;
+  --status-danger-bg: rgba(239, 68, 68, 0.08);
+  --status-danger-border: rgba(239, 68, 68, 0.25);
+  --status-danger-text: #dc2626;
+  --card-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  --radius-lg: 14px;
+  --radius-md: 8px;
+  --radius-sm: 6px;
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   min-height: 100vh;
@@ -336,18 +369,27 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   padding: 20px;
   overflow-x: hidden;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
+html.light body {
+  background-color: #f8fafc;
+  background-image:
+    radial-gradient(circle at 50% 20%, rgba(2, 132, 199, 0.08) 0%, transparent 60%),
+    radial-gradient(circle at 80% 80%, rgba(14, 165, 233, 0.05) 0%, transparent 50%);
+}
+
 .login-card {
-  background: rgba(17, 24, 39, 0.9);
+  background: var(--bg-card);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-card);
+  box-shadow: var(--card-shadow);
   border-radius: var(--radius-lg);
   padding: 38px 32px;
   width: 100%;
   max-width: 380px;
   animation: cardFadeUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 @keyframes cardFadeUp {
   from { opacity: 0; transform: translateY(12px) scale(0.98); }
@@ -391,7 +433,7 @@ body {
   font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: #fff;
+  color: var(--text-main);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -461,7 +503,17 @@ body {
 .input-wrap input:focus {
   border-color: var(--border-focus);
   box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.22);
-  background: #0d1628;
+  background: var(--bg-input);
+}
+/* 浏览器自动填充与密码管理器的背景强制匹配 */
+.input-wrap input:-webkit-autofill,
+.input-wrap input:-webkit-autofill:hover, 
+.input-wrap input:-webkit-autofill:focus,
+.input-wrap input:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--text-main) !important;
+  -webkit-box-shadow: 0 0 0px 1000px var(--bg-input) inset !important;
+  box-shadow: 0 0 0px 1000px var(--bg-input) inset !important;
+  transition: background-color 5000s ease-in-out 0s;
 }
 .eye-toggle {
   position: absolute;
@@ -528,7 +580,7 @@ body {
   border-radius: var(--radius-sm);
   background: var(--status-danger-bg);
   border: 1px solid var(--status-danger-border);
-  color: #fca5a5;
+  color: var(--status-danger-text);
   font-size: 12px;
   display: flex;
   align-items: center;
@@ -550,7 +602,7 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #475569;
+  color: var(--text-muted);
   font-size: 11px;
 }
 .login-footer svg {
@@ -562,9 +614,41 @@ body {
   stroke-linejoin: round;
   fill: none;
 }
+
+.theme-toggle-corner {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--card-shadow);
+  transition: all 0.15s ease;
+  z-index: 100;
+}
+.theme-toggle-corner:hover {
+  color: var(--text-main);
+  border-color: var(--border-focus);
+  transform: translateY(-1px);
+}
+.theme-toggle-corner svg {
+  width: 18px;
+  height: 18px;
+}
 </style>
 </head>
 <body>
+<button type="button" class="theme-toggle-corner" id="themeToggleBtn" onclick="toggleTheme()" title="切换浅色/深色模式">
+  <span id="themeToggleIcon"></span>
+</button>
+
 <div class="login-card" id="loginCard">
   <div class="brand-header">
     <div class="logo-mark">
@@ -673,6 +757,33 @@ document.getElementById('f').onsubmit = async e => {
     btnSpinner.style.display = 'none';
   }
 };
+
+function updateThemeIcon(isLight){
+  const iconSpan = document.getElementById('themeToggleIcon');
+  if(!iconSpan) return;
+  if(isLight){
+    iconSpan.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
+  } else {
+    iconSpan.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>';
+  }
+}
+function toggleTheme(){
+  const isLight = document.documentElement.classList.contains('light');
+  const target = isLight ? 'dark' : 'light';
+  document.documentElement.className = target;
+  try{ localStorage.setItem('fanout_theme', target); }catch(e){}
+  updateThemeIcon(target === 'light');
+}
+updateThemeIcon(document.documentElement.classList.contains('light'));
+if(window.matchMedia){
+  window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', e => {
+    if(!localStorage.getItem('fanout_theme')){
+      const target = e.matches ? 'light' : 'dark';
+      document.documentElement.className = target;
+      updateThemeIcon(target === 'light');
+    }
+  });
+}
 </script>
 </body>
 </html>`
