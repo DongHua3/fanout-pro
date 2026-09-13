@@ -1242,30 +1242,63 @@ func (x *XUI) InboundDetail(id int, publicHost string) (*InboundDetail, error) {
 	return detail, nil
 }
 
-// linkForPort 从一批分享链接里挑出属于指定端口的那条，并把面板写的
-// localhost 换成实际可连的地址。
+var uriAuthorityRegex = regexp.MustCompile(`^([a-zA-Z0-9+-.]+://)([^@/?#]*@)?(\[[^\]]+\]|[^/?#:]+):(\d+)`)
+
+// linkForPort 从一批分享链接里挑出属于指定端口的那条，并把面板写的主机名
+// 换成实际可连的地址（域名或公网 IP）。
 //
-// vmess 的链接是 base64 编码的 JSON（vmess://<base64>），端口和地址都在里面，
+// vmess 的链接通常是 base64 编码的 JSON（vmess://<base64>），端口和地址都在里面，
 // 按 URI 形式匹配 ":端口?" 一条也筛不出来，得先解码。
 func linkForPort(link string, port int, publicHost string) (string, bool) {
 	if strings.HasPrefix(link, "vmess://") {
-		return fixVMessLink(link, port, publicHost)
+		if fixed, ok := fixVMessLink(link, port, publicHost); ok {
+			return fixed, true
+		}
+		// 若 base64 解码失败（如 URI 格式的 vmess://uuid@host:port），继续回落到通用 URI 解析
 	}
+
+	m := uriAuthorityRegex.FindStringSubmatch(link)
+	if len(m) >= 5 {
+		linkPort, err := strconv.Atoi(m[4])
+		if err == nil && linkPort == port {
+			if publicHost == "" {
+				return link, true
+			}
+			targetHost := publicHost
+			if strings.Contains(targetHost, ":") && !strings.HasPrefix(targetHost, "[") {
+				targetHost = "[" + targetHost + "]"
+			}
+			scheme := m[1]
+			userinfo := m[2]
+			portStr := m[4]
+			newAuthority := scheme + userinfo + targetHost + ":" + portStr
+			return newAuthority + link[len(m[0]):], true
+		}
+	}
+
+	// 兜底：兼容非标准 URI 或无完整协议前缀情况（仅替换一次 authority 中的主机名，保护 remark 不受影响）
 	if strings.Contains(link, fmt.Sprintf(":%d?", port)) || strings.Contains(link, fmt.Sprintf(":%d#", port)) {
-		return strings.Replace(link, "@localhost:", "@"+publicHost+":", 1), true
+		if publicHost != "" {
+			targetHost := publicHost
+			if strings.Contains(targetHost, ":") && !strings.HasPrefix(targetHost, "[") {
+				targetHost = "[" + targetHost + "]"
+			}
+			if strings.Contains(link, "@localhost:") {
+				link = strings.Replace(link, "@localhost:", "@"+targetHost+":", 1)
+			}
+		}
+		return link, true
 	}
 	return "", false
 }
 
 // fixVMessLink 解码 vmess 链接，确认端口后把 add 换成实际地址再编码回去。
-// 解不开就按原样放行：宁可给一条地址还是 localhost 的链接，也别整条丢掉。
+// 若不是合法 base64 JSON，返回 false 允许外层回落到通用 URI 规则。
 func fixVMessLink(link string, port int, publicHost string) (string, bool) {
 	payload := strings.TrimPrefix(link, "vmess://")
 	blob, err := base64.StdEncoding.DecodeString(payload)
 	if err != nil {
-		// 有的面板版本用 URI 形式的 vmess，退回通用匹配
-		return "", strings.Contains(link, fmt.Sprintf(":%d?", port)) ||
-			strings.Contains(link, fmt.Sprintf(":%d#", port))
+		return "", false
 	}
 	var conf map[string]any
 	if err := json.Unmarshal(blob, &conf); err != nil {
@@ -1274,7 +1307,7 @@ func fixVMessLink(link string, port int, publicHost string) (string, bool) {
 	if int(toFloat(conf["port"])) != port {
 		return "", false
 	}
-	if fmt.Sprint(orEmpty(conf["add"])) == "localhost" {
+	if publicHost != "" {
 		conf["add"] = publicHost
 	}
 	fixed, err := json.Marshal(conf)

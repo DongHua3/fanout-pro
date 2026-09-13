@@ -708,7 +708,33 @@ textarea:focus{outline:none;border-color:var(--accent)}
             <option value="127.0.0.1">仅本机（127.0.0.1）</option>
           </select></label>
       </div>
-      <div class="hint bad" id="setPortHint">改端口或监听地址会切换监听，保存后要用新地址重新打开界面。</div>
+      <div class="hint bad" id="setPortHint">改端口、监听地址或协议会切换监听，保存后要用新地址重新打开界面。</div>
+
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
+        <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px">🌐 域名与 HTTPS (SSL)</div>
+        <label class="f"><span>面板域名</span>
+          <input id="setDomain" type="text" spellcheck="false" placeholder="例如 panel.example.com（可选）"></label>
+        <div class="hint">绑定域名后，节点分享链接和订阅源将优先使用此域名。</div>
+
+        <label class="f" style="margin-top:12px"><span>SSL 模式</span>
+          <select id="setSSLMode">
+            <option value="none">外部反代 / HTTP（纯域名直连或外部 CF CDN / 反代）</option>
+            <option value="custom">原生自定义 SSL 证书（面板自身原生 HTTPS 监听）</option>
+            <option value="caddy">一键 Caddy 自动化反代（母机 443 免端口纯净访问）</option>
+          </select></label>
+
+        <div id="setSSLCertWrap" style="margin-top:12px;display:none">
+          <label class="f"><span>证书文件绝对路径 (Cert / PEM)</span>
+            <input id="setCertFile" type="text" spellcheck="false" placeholder="/etc/ssl/cert.pem 或 acme.sh 证书路径"></label>
+          <label class="f" style="margin-top:8px"><span>私钥文件绝对路径 (Key)</span>
+            <input id="setKeyFile" type="text" spellcheck="false" placeholder="/etc/ssl/key.pem 或 acme.sh 私钥路径"></label>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+            <button type="button" class="btn-subtle" id="setCertCheck">🔍 检测证书有效性</button>
+            <span id="setCertStatus" style="font-size:11px;color:var(--dim)"></span>
+          </div>
+        </div>
+        <div class="hint" style="margin-top:8px">也可在终端使用 <code>f ssl</code> 一键申请免费证书，或 <code>f caddy</code> 部署 443 自动化反代。</div>
+      </div>
 
       <div class="updsec">
         <div class="updrow">
@@ -2211,8 +2237,29 @@ $('#exportAll').onclick = async () => {
   if(!ids.length){ toast('还没有节点可导出', true); return; }
 
   let bp = (location.pathname || '').replace(/\/+$/, '');
-  let subUrl = location.origin + bp + '/sub';
-  if(view.sub_token){
+  let domain = (curSettings && curSettings.domain) || (view && view.domain) || '';
+  let subUrl = '';
+  if (domain) {
+    let mode = (curSettings && curSettings.ssl_mode) || (view && view.ssl_mode) || '';
+    if (mode === 'caddy') {
+      subUrl = 'https://' + domain + bp + '/sub';
+    } else {
+      let isTLS = (curSettings && (curSettings.is_tls || curSettings.ssl_mode === 'custom')) ||
+        (view && view.is_tls) || location.protocol === 'https:';
+      let scheme = isTLS ? 'https://' : 'http://';
+      let port = (curSettings && curSettings.port) || (location.port ? parseInt(location.port, 10) : (isTLS ? 443 : 80));
+      let portStr = '';
+      if (isTLS) {
+        if (port && port !== 443) portStr = ':' + port;
+      } else {
+        if (port && port !== 80) portStr = ':' + port;
+      }
+      subUrl = scheme + domain + portStr + bp + '/sub';
+    }
+  } else {
+    subUrl = location.origin + bp + '/sub';
+  }
+  if(view && view.sub_token){
     subUrl += '?token=' + encodeURIComponent(view.sub_token);
   }
   const subEl = $('#subUrlInput');
@@ -2288,6 +2335,18 @@ $('#settingsBtn').onclick = async () => {
     $('#setPath').value = (s.base_path || '').replace(/^\//, '');
     $('#setPort').value = s.port || '';
     $('#setListen').value = s.listen_addr || '0.0.0.0';
+    $('#setDomain').value = s.domain || '';
+    if (s.ssl_mode === 'caddy') {
+      $('#setSSLMode').value = 'caddy';
+    } else if (s.ssl_mode === 'custom' || (s.cert_file && s.key_file && s.ssl_mode !== 'none')) {
+      $('#setSSLMode').value = 'custom';
+    } else {
+      $('#setSSLMode').value = 'none';
+    }
+    $('#setCertFile').value = s.cert_file || '';
+    $('#setKeyFile').value = s.key_file || '';
+    $('#setCertStatus').textContent = '';
+    toggleSSLCertWrap();
     $('#setPathHint').textContent = '界面挂在这个路径下，扫端口的探不到。只能用字母数字和 - _。';
     $('#updCur').textContent = s.version || '-';
     $('#updLatest').textContent = '';
@@ -2296,6 +2355,42 @@ $('#settingsBtn').onclick = async () => {
     $('#updCheck').disabled = false;
     $('#updCheck').textContent = '检查更新';
   }catch(err){ $('#setPathHint').textContent = '读取失败: ' + err.message; }
+};
+
+function toggleSSLCertWrap(){
+  const isCustom = $('#setSSLMode').value === 'custom';
+  $('#setSSLCertWrap').style.display = isCustom ? 'block' : 'none';
+}
+$('#setSSLMode').onchange = toggleSSLCertWrap;
+
+$('#setCertCheck').onclick = async e => {
+  e.target.disabled = true;
+  $('#setCertStatus').textContent = '检测中…';
+  try{
+    const cert = $('#setCertFile').value.trim();
+    const key = $('#setKeyFile').value.trim();
+    if(!cert || !key){
+      $('#setCertStatus').innerHTML = '<span style="color:var(--bad)">请先填写证书与私钥路径</span>';
+      e.target.disabled = false;
+      return;
+    }
+    const r = await api('/api/ssl/inspect', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({cert_file: cert, key_file: key})
+    });
+    const info = (r.issuer || r.subject_cn || '有效') + '，剩余 ' + r.days_left + ' 天';
+    if(r.is_expired){
+      $('#setCertStatus').innerHTML = '<span style="color:var(--bad)">⚠️ 证书已过期 (' + esc(info) + ')</span>';
+    } else if(r.days_left <= 7){
+      $('#setCertStatus').innerHTML = '<span style="color:var(--warn)">⚠️ 即将到期 (' + esc(info) + ')</span>';
+    } else {
+      $('#setCertStatus').innerHTML = '<span style="color:var(--ok)">✓ 有效 (' + esc(info) + ')</span>';
+    }
+  }catch(err){
+    $('#setCertStatus').innerHTML = '<span style="color:var(--bad)">✗ ' + esc(err.message) + '</span>';
+  }
+  e.target.disabled = false;
 };
 
 // 检查更新：问后端 GitHub 最新版，有新版就亮出更新按钮和更新内容
@@ -2346,10 +2441,20 @@ $('#updApply').onclick = async e => {
   }
 };
 
-// 端口/监听地址变了要提示用户之后从新地址进；密码/路径可原地生效
-function nextURL(port, listen, path){
-  const host = (listen && listen !== '0.0.0.0') ? listen : location.hostname;
-  return location.protocol + '//' + host + ':' + port + (path ? '/' + path : '') + '/';
+// 端口/监听地址/协议/域名变了要提示用户之后从新地址进；密码/路径可原地生效
+function nextURL(port, listen, path, domain, isTLS, sslMode){
+  if(sslMode === 'caddy' && domain){
+    return 'https://' + domain + (path ? '/' + path : '') + '/';
+  }
+  const scheme = isTLS ? 'https:' : (location.protocol || 'http:');
+  const host = domain || ((listen && listen !== '0.0.0.0') ? listen : location.hostname);
+  let portPart = '';
+  if(isTLS){
+    if(port !== 443) portPart = ':' + port;
+  } else {
+    if(port !== 80) portPart = ':' + port;
+  }
+  return scheme + '//' + host + portPart + (path ? '/' + path : '') + '/';
 }
 
 $('#setSave').onclick = async e => {
@@ -2361,6 +2466,23 @@ $('#setSave').onclick = async e => {
   const port = parseInt($('#setPort').value.trim(), 10);
   if(port) body.port = port;
   body.listen_addr = $('#setListen').value;
+  const domain = $('#setDomain').value.trim();
+  body.domain = domain;
+  const sslMode = $('#setSSLMode').value;
+  body.ssl_mode = sslMode;
+  if(sslMode === 'custom'){
+    body.cert_file = $('#setCertFile').value.trim();
+    body.key_file = $('#setKeyFile').value.trim();
+  } else {
+    body.cert_file = '';
+    body.key_file = '';
+  }
+
+  const willBeTLS = (sslMode === 'custom' && body.cert_file && body.key_file);
+  const wasTLS = curSettings && (curSettings.is_tls || curSettings.ssl_mode === 'custom');
+  const tlsChanged = Boolean(willBeTLS) !== Boolean(wasTLS);
+  const domainChanged = curSettings && (domain !== (curSettings.domain || ''));
+  const modeChanged = curSettings && (sslMode !== (curSettings.ssl_mode || 'none'));
 
   const portChanged = curSettings && (port !== curSettings.port
     || body.listen_addr !== (curSettings.listen_addr || '0.0.0.0'));
@@ -2382,11 +2504,11 @@ $('#setSave').onclick = async e => {
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify(body),
     });
-    if(portChanged){
-      const url = nextURL(port, body.listen_addr, body.base_path);
-      $('#setPortHint').innerHTML = '监听已切换，请从新地址打开：<a href="' + esc(url) + '">' + esc(url) + '</a>';
-      toast('监听已切换，用新地址重新打开');
-      // 端口变了当前连接会断，不自动跳转，让用户看清新地址
+    if(portChanged || tlsChanged || domainChanged || modeChanged){
+      const url = nextURL(port, body.listen_addr, body.base_path, domain, willBeTLS, sslMode);
+      $('#setPortHint').innerHTML = '监听或地址已切换，请从新地址打开：<a href="' + esc(url) + '" target="_blank">' + esc(url) + '</a>';
+      toast('监听或地址已切换，用新地址重新打开');
+      // 端口/协议变了当前连接可能断开，不自动跳转，让用户看清新地址
     } else {
       toast('已保存');
       // 路径可能变了，重新加载到新路径下

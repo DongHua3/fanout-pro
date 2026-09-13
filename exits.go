@@ -48,6 +48,12 @@ type ExitsView struct {
 	PublicIP string `json:"public_ip"`
 	// SubToken 客户端订阅访问凭据
 	SubToken string `json:"sub_token"`
+	// Domain 是绑定的面板域名（若有）
+	Domain string `json:"domain,omitempty"`
+	// IsTLS 表示当前 Web 服务是否启用了 TLS
+	IsTLS bool `json:"is_tls,omitempty"`
+	// SSLMode 是配置的 SSL 模式 ("none" | "custom" | "acme" | "caddy")
+	SSLMode string `json:"ssl_mode,omitempty"`
 }
 
 // inboundCache 给入站列表做很短的缓存。界面每几秒轮询一次，
@@ -89,7 +95,14 @@ func invalidateInbounds() {
 // ExitsOf 把隧道和入站 join 成界面直接可用的形态。
 func (m *Manager) ExitsOf() ExitsView {
 	tunnels := m.Tunnels()
-	view := ExitsView{Exits: make([]Exit, 0, len(tunnels)), PublicIP: hostPublicIP()}
+	cfg := getWebSettings()
+	view := ExitsView{
+		Exits:    make([]Exit, 0, len(tunnels)),
+		PublicIP: hostPublicIP(),
+		Domain:   cfg.Domain,
+		IsTLS:    cfg.IsTLSEnabled(),
+		SSLMode:  cfg.SSLMode,
+	}
 
 	// 先填后端类型：入站读取失败时界面仍要知道当前是哪种模式
 	if p, err := openPanel(); err == nil {

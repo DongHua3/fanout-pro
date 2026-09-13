@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -149,12 +150,21 @@ func main() {
 	}
 
 	srv := newWebServer(StripBasePath(auth.Wrap(mux)))
-	// 设置面板：改密码 / 改路径 / 改端口 / 改本地监听。
+	// 设置面板：改密码 / 改路径 / 改端口 / 改本地监听 / 域名与 SSL 设置。
 	mux.HandleFunc("/api/settings", apiSettings(auth, srv))
+	mux.HandleFunc("/api/ssl/inspect", apiSSLInspect)
 	mux.HandleFunc("/api/update/check", apiUpdateCheck)
 	mux.HandleFunc("/api/update/apply", apiUpdateApply)
 
-	log.Printf("管理界面: http://<本机IP>%s%s/", webCfg.listenAddrString(), currentBasePath())
+	scheme := "http"
+	if webCfg.IsTLSEnabled() {
+		scheme = "https"
+	}
+	hostDisplay := "<本机IP>"
+	if webCfg.Domain != "" {
+		hostDisplay = webCfg.Domain
+	}
+	log.Printf("管理界面: %s://%s%s%s/", scheme, hostDisplay, webCfg.listenAddrString(), currentBasePath())
 	log.Printf("SOCKS5 端口在 %d-%d 之间随机分配", randPortMin, randPortMax)
 	if err := srv.serve(); err != nil {
 		log.Fatal(err)
@@ -491,7 +501,7 @@ func apiCred(m *Manager) http.HandlerFunc {
 	}
 }
 
-// apiSettings 管理界面自身的设置：改密码 / 改路径 / 改端口 / 改本地监听。
+// apiSettings 管理界面自身的设置：改密码 / 改路径 / 改端口 / 改本地监听 / 域名与 SSL 设置。
 // GET 返回当前值（不含明文口令）；POST 按传入的字段逐项应用，任一项失败即整体回报。
 func apiSettings(auth *Auth, srv *webServer) http.HandlerFunc {
 	type settingsReq struct {
@@ -499,6 +509,10 @@ func apiSettings(auth *Auth, srv *webServer) http.HandlerFunc {
 		BasePath   *string `json:"base_path"`   // 提供即改访问路径（空串=去掉前缀）
 		Port       *int    `json:"port"`        // 提供即改监听端口
 		ListenAddr *string `json:"listen_addr"` // 提供即改监听地址
+		Domain     *string `json:"domain"`      // 域名
+		CertFile   *string `json:"cert_file"`   // 证书文件路径
+		KeyFile    *string `json:"key_file"`    // 私钥文件路径
+		SSLMode    *string `json:"ssl_mode"`    // SSL 模式
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
@@ -522,14 +536,26 @@ func apiSettings(auth *Auth, srv *webServer) http.HandlerFunc {
 					return
 				}
 			}
-			// 改端口 / 监听地址：合成一份新的 WebSettings 一起应用，避免绑两次
-			if in.Port != nil || in.ListenAddr != nil {
+			// 改端口 / 监听地址 / 域名 / SSL 设置：合成一份新的 WebSettings 一起应用
+			if in.Port != nil || in.ListenAddr != nil || in.Domain != nil || in.CertFile != nil || in.KeyFile != nil || in.SSLMode != nil {
 				next := getWebSettings()
 				if in.Port != nil {
 					next.Port = *in.Port
 				}
 				if in.ListenAddr != nil {
 					next.ListenAddr = *in.ListenAddr
+				}
+				if in.Domain != nil {
+					next.Domain = *in.Domain
+				}
+				if in.CertFile != nil {
+					next.CertFile = *in.CertFile
+				}
+				if in.KeyFile != nil {
+					next.KeyFile = *in.KeyFile
+				}
+				if in.SSLMode != nil {
+					next.SSLMode = *in.SSLMode
 				}
 				if err := srv.applyWebSettings(next); err != nil {
 					writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
@@ -547,10 +573,63 @@ func apiSettings(auth *Auth, srv *webServer) http.HandlerFunc {
 			"base_path":    currentBasePath(),
 			"port":         cfg.Port,
 			"listen_addr":  listen,
+			"domain":       cfg.Domain,
+			"cert_file":    cfg.CertFile,
+			"key_file":     cfg.KeyFile,
+			"ssl_mode":     cfg.SSLMode,
+			"is_tls":       srv.IsTLS(),
 			"has_password": true,
 			"version":      version,
 		})
 	}
+}
+
+// apiSSLInspect 提供对传入或已配置证书的实时解析与有效性诊断。
+func apiSSLInspect(w http.ResponseWriter, r *http.Request) {
+	certFile := ""
+	keyFile := ""
+
+	if r.Method == http.MethodPost {
+		var req struct {
+			CertFile string `json:"cert_file"`
+			KeyFile  string `json:"key_file"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		certFile = req.CertFile
+		keyFile = req.KeyFile
+	}
+	if certFile == "" {
+		certFile = r.URL.Query().Get("cert_file")
+	}
+	if keyFile == "" {
+		keyFile = r.URL.Query().Get("key_file")
+	}
+
+	if certFile == "" || keyFile == "" {
+		cfg := getWebSettings()
+		if certFile == "" {
+			certFile = cfg.CertFile
+		}
+		if keyFile == "" {
+			keyFile = cfg.KeyFile
+		}
+	}
+
+	if certFile == "" || keyFile == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "请提供证书文件 (cert_file) 和私钥文件 (key_file) 路径",
+		})
+		return
+	}
+
+	detail, err := inspectCertificate(certFile, keyFile)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error": err.Error(),
+		})
+		return
+	}
+	writeJSON(w, http.StatusOK, detail)
 }
 
 // apiUpdateCheck 问 GitHub 最新 release，回报当前/最新版本与更新内容。
@@ -942,17 +1021,26 @@ func apiXUIDetail(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, detail)
 }
 
-// publicHost 决定分享链接里的连接地址。母机公网 IPv4 才是客户端真正能连上
-// 的地址，所以优先用它；探测不到（比如纯内网）再退回访问 fanout 时用的主机名。
+// publicHost 决定分享链接里的连接地址。优先使用设置中绑定的域名；
+// 未配置域名时，以母机公网 IPv4 为准；探测不到再退回访问 fanout 时用的主机名。
 func publicHost(r *http.Request) string {
+	cfg := getWebSettings()
+	if cfg.Domain != "" {
+		return cfg.Domain
+	}
 	if ip := hostPublicIP(); ip != "" {
 		return ip
 	}
-	host := r.Host
-	if i := strings.LastIndex(host, ":"); i > 0 {
-		host = host[:i]
+	host := ""
+	if r != nil {
+		host = r.Host
 	}
-	if host == "" || host == "127.0.0.1" || host == "localhost" {
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	host = strings.TrimPrefix(host, "[")
+	host = strings.TrimSuffix(host, "]")
+	if host == "" || host == "127.0.0.1" || host == "::1" || host == "localhost" {
 		return "<服务器IP>"
 	}
 	return host

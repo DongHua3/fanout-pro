@@ -95,11 +95,16 @@ pause() {
 }
 
 show_info() {
-  local state port bp pw ip
+  local state port bp pw ip dom cf sm la
   state=$(svc_state); port=$(web_port)
   bp=$(cat "$WORK_DIR/basepath" 2>/dev/null || echo "-")
   pw=$(cat "$WORK_DIR/password" 2>/dev/null || echo "-")
   ip=$(public_ip)
+
+  dom=$(sed -n 's/.*"domain"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null)
+  cf=$(sed -n 's/.*"cert_file"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null)
+  sm=$(sed -n 's/.*"ssl_mode"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null)
+  la=$(sed -n 's/.*"listen_addr"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null)
 
   echo
   if [[ $state == running ]]; then
@@ -110,7 +115,26 @@ show_info() {
   echo -e "  版本      $("$BIN" -version 2>/dev/null || echo '-')"
   echo -e "  开机自启  $(svc_enabled_text)"
   echo
-  echo -e "  ${B}管理地址  http://${ip}:${port}/${bp}/${N}"
+
+  local path_part=""
+  [[ -n "$bp" && "$bp" != "-" ]] && path_part="${bp#/}/"
+
+  if [[ "$sm" == "caddy" ]] && [[ -n "$dom" ]]; then
+    echo -e "  ${B}管理地址  https://${dom}/${path_part}${N} ${G}(Caddy 反代 443)${N}"
+    echo -e "  ${D}本地监听  http://127.0.0.1:${port}/${path_part}${N}"
+  elif [[ -n "$cf" ]] && [[ "$sm" != "none" ]]; then
+    local host_part="${dom:-$ip}"
+    if [[ "$port" == "443" ]]; then
+      echo -e "  ${B}管理地址  https://${host_part}/${path_part}${N} ${G}(原生 HTTPS)${N}"
+    else
+      echo -e "  ${B}管理地址  https://${host_part}:${port}/${path_part}${N} ${G}(原生 HTTPS)${N}"
+    fi
+  elif [[ -n "$dom" ]]; then
+    echo -e "  ${B}管理地址  http://${dom}:${port}/${path_part}${N} ${D}(纯域名 HTTP)${N}"
+  else
+    echo -e "  ${B}管理地址  http://${ip}:${port}/${path_part}${N}"
+  fi
+
   echo -e "  ${B}访问口令  ${pw}${N}"
   echo
 
@@ -316,6 +340,358 @@ do_uninstall() {
   exit 0
 }
 
+update_json_val() {
+  local key="$1" val="${2:-}"
+  local f="$WORK_DIR/settings.json"
+  [[ -f "$f" ]] || printf '{\n  "port": 8899,\n  "listen_addr": ""\n}\n' > "$f"
+  local esc_val
+  esc_val=$(echo "$val" | sed -e 's/[\\#&]/\\&/g')
+  if grep -q "\"${key}\"[[:space:]]*:" "$f" 2>/dev/null; then
+    if [[ -n "$val" && "$val" =~ ^[0-9]+$ ]]; then
+      sed -i "s/\"${key}\"[[:space:]]*:[[:space:]]*[0-9]*/\"${key}\": ${val}/" "$f"
+    else
+      sed -i "s#\"${key}\"[[:space:]]*:[[:space:]]*\"[^\"]*\"#\"${key}\": \"${esc_val}\"#" "$f"
+    fi
+  else
+    if [[ -n "$val" && "$val" =~ ^[0-9]+$ ]]; then
+      sed -i "s#\"port\"#\"${key}\": ${val},\n  \"port\"#" "$f"
+    else
+      sed -i "s#\"port\"#\"${key}\": \"${esc_val}\",\n  \"port\"#" "$f"
+    fi
+  fi
+  chmod 600 "$f"
+}
+
+set_domain() {
+  local cur dom
+  cur=$(sed -n 's/.*"domain"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null || true)
+  if [[ -n "${1:-}" ]]; then
+    if [[ "$1" == "clear" || "$1" == "--clear" || "$1" == "none" ]]; then
+      dom=""
+    else
+      dom="$1"
+    fi
+  else
+    echo
+    echo -e "  当前绑定域名: ${B}${cur:-未绑定}${N}"
+    read -rp "  输入新域名 (例如 panel.example.com，留空清除绑定): " dom
+  fi
+  dom=$(echo "${dom:-}" | sed -e 's|^https*://||' -e 's|/.*||' -e 's|:.*||' | tr '[:upper:]' '[:lower:]' | xargs)
+  update_json_val "domain" "${dom:-}"
+  svc_restart
+  if [[ -n "$dom" ]]; then
+    echo -e "  ${G}域名已设置为: ${dom} 并重启服务${N}"
+  else
+    echo -e "  ${Y}已清除域名绑定并重启服务${N}"
+  fi
+}
+
+bind_custom_ssl() {
+  local c k dom cur_dom
+  cur_dom=$(sed -n 's/.*"domain"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null || true)
+  echo
+  read -rp "  证书文件绝对路径 (.crt / .pem): " c
+  c=$(echo "${c:-}" | xargs)
+  if [[ ! -f "$c" ]]; then
+    echo -e "  ${R}证书文件不存在: ${c}${N}"; return
+  fi
+
+  read -rp "  私钥文件绝对路径 (.key): " k
+  k=$(echo "${k:-}" | xargs)
+  if [[ ! -f "$k" ]]; then
+    echo -e "  ${R}私钥文件不存在: ${k}${N}"; return
+  fi
+
+  if [[ -z "$cur_dom" ]]; then
+    read -rp "  绑定域名 (例如 panel.example.com): " dom
+    dom=$(echo "${dom:-}" | sed -e 's|^https*://||' -e 's|/.*||' -e 's|:.*||' | tr '[:upper:]' '[:lower:]' | xargs)
+    [[ -n "$dom" ]] && update_json_val "domain" "$dom"
+  fi
+
+  update_json_val "cert_file" "$c"
+  update_json_val "key_file" "$k"
+  update_json_val "ssl_mode" "custom"
+  svc_restart
+  echo -e "  ${G}自定义 SSL 证书已绑定并重启生效！${N}"
+}
+
+acme_standalone() {
+  local dom email try_it
+  dom=$(sed -n 's/.*"domain"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null || true)
+  echo
+  echo -e "${B}  一键申领 Let's Encrypt 证书 (Standalone 80 端口)${N}"
+  if [[ -z "$dom" ]]; then
+    read -rp "  输入解析到本机的域名: " dom
+    dom=$(echo "${dom:-}" | sed -e 's|^https*://||' -e 's|/.*||' -e 's|:.*||' | tr '[:upper:]' '[:lower:]' | xargs)
+    [[ -z "$dom" ]] && { echo -e "  ${R}域名不能为空${N}"; return; }
+    update_json_val "domain" "$dom"
+  else
+    read -rp "  域名 [回车沿用: ${dom}]: " new_dom
+    if [[ -n "${new_dom:-}" ]]; then
+      dom=$(echo "$new_dom" | sed -e 's|^https*://||' -e 's|/.*||' -e 's|:.*||' | tr '[:upper:]' '[:lower:]' | xargs)
+      update_json_val "domain" "$dom"
+    fi
+  fi
+
+  if ss -tln 2>/dev/null | grep -q ":80 "; then
+    echo -e "  ${Y}警告: 检测到 80 端口已被占用。Standalone 模式需要临时监听 80 端口。${N}"
+    echo -e "  ${D}请先暂停占用 80 端口的服务，或改用 Cloudflare DNS 零端口模式。${N}"
+    read -rp "  是否尝试继续？[y/N]: " try_it
+    [[ ${try_it,,} == y ]] || { echo "  已取消"; return; }
+  fi
+
+  read -rp "  注册邮箱 (留空自动生成): " email
+  email="${email:-admin@${dom}}"
+
+  if ! command -v ~/.acme.sh/acme.sh >/dev/null 2>&1; then
+    echo "  正在安装 acme.sh..."
+    curl -fsSL https://get.acme.sh | sh -s email="$email" || {
+      echo -e "  ${R}acme.sh 安装失败${N}"; return
+    }
+  fi
+
+  mkdir -p "$WORK_DIR/ssl"
+  chmod 700 "$WORK_DIR/ssl" 2>/dev/null || true
+  ~/.acme.sh/acme.sh --set-default-ca --server letsencrypt >/dev/null 2>&1 || true
+  if ! ~/.acme.sh/acme.sh --issue -d "$dom" --standalone --httpport 80; then
+    echo -e "  ${R}证书签发失败，请确认域名已正确解析到本机 IP 且 80 端口未被阻断${N}"
+    return
+  fi
+
+  ~/.acme.sh/acme.sh --install-cert -d "$dom" \
+    --key-file "$WORK_DIR/ssl/privkey.pem" \
+    --fullchain-file "$WORK_DIR/ssl/fullchain.pem" \
+    --reloadcmd "systemctl restart fanout 2>/dev/null || rc-service fanout restart 2>/dev/null || true"
+
+  update_json_val "cert_file" "$WORK_DIR/ssl/fullchain.pem"
+  update_json_val "key_file" "$WORK_DIR/ssl/privkey.pem"
+  update_json_val "ssl_mode" "acme"
+  svc_restart
+  echo -e "  ${G}ACME 证书申请并安装成功！已配置自动续期与热重载。${N}"
+}
+
+acme_cf_dns() {
+  local dom token
+  dom=$(sed -n 's/.*"domain"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null || true)
+  echo
+  echo -e "${B}  一键申领 Let's Encrypt 证书 (Cloudflare DNS API 零端口模式)${N}"
+  echo -e "${D}  无需开放 80 端口，适合 80 端口被封禁或被其它服务占用的环境。${N}"
+  if [[ -z "$dom" ]]; then
+    read -rp "  输入托管在 Cloudflare 上的域名: " dom
+    dom=$(echo "${dom:-}" | sed -e 's|^https*://||' -e 's|/.*||' -e 's|:.*||' | tr '[:upper:]' '[:lower:]' | xargs)
+    [[ -z "$dom" ]] && { echo -e "  ${R}域名不能为空${N}"; return; }
+    update_json_val "domain" "$dom"
+  else
+    read -rp "  域名 [回车沿用: ${dom}]: " new_dom
+    if [[ -n "${new_dom:-}" ]]; then
+      dom=$(echo "$new_dom" | sed -e 's|^https*://||' -e 's|/.*||' -e 's|:.*||' | tr '[:upper:]' '[:lower:]' | xargs)
+      update_json_val "domain" "$dom"
+    fi
+  fi
+
+  read -rp "  输入 Cloudflare API Token (需具备 DNS:Edit 权限): " token
+  token=$(echo "${token:-}" | xargs)
+  [[ -z "$token" ]] && { echo -e "  ${R}Token 不能为空${N}"; return; }
+
+  if ! command -v ~/.acme.sh/acme.sh >/dev/null 2>&1; then
+    echo "  正在安装 acme.sh..."
+    curl -fsSL https://get.acme.sh | sh -s email="admin@${dom}" || {
+      echo -e "  ${R}acme.sh 安装失败${N}"; return
+    }
+  fi
+
+  mkdir -p "$WORK_DIR/ssl"
+  chmod 700 "$WORK_DIR/ssl" 2>/dev/null || true
+  export CF_Token="$token"
+  ~/.acme.sh/acme.sh --set-default-ca --server letsencrypt >/dev/null 2>&1 || true
+  if ! ~/.acme.sh/acme.sh --issue --dns dns_cf -d "$dom"; then
+    echo -e "  ${R}证书签发失败，请检查 CF Token 权限与域名归属${N}"
+    return
+  fi
+
+  ~/.acme.sh/acme.sh --install-cert -d "$dom" \
+    --key-file "$WORK_DIR/ssl/privkey.pem" \
+    --fullchain-file "$WORK_DIR/ssl/fullchain.pem" \
+    --reloadcmd "systemctl restart fanout 2>/dev/null || rc-service fanout restart 2>/dev/null || true"
+
+  update_json_val "cert_file" "$WORK_DIR/ssl/fullchain.pem"
+  update_json_val "key_file" "$WORK_DIR/ssl/privkey.pem"
+  update_json_val "ssl_mode" "acme"
+  svc_restart
+  echo -e "  ${G}Cloudflare DNS ACME 证书申请并安装成功！${N}"
+}
+
+inspect_ssl() {
+  local cf kf
+  cf=$(sed -n 's/.*"cert_file"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null || true)
+  kf=$(sed -n 's/.*"key_file"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null || true)
+  echo
+  if [[ -z "$cf" || ! -f "$cf" ]]; then
+    echo -e "  ${Y}尚未配置或未找到证书文件${N}"
+    return
+  fi
+  echo -e "  证书路径: ${cf}"
+  echo -e "  私钥路径: ${kf:-未配置}"
+  if command -v openssl >/dev/null 2>&1; then
+    echo
+    echo -e "  ${B}证书详情：${N}"
+    openssl x509 -in "$cf" -noout -subject -issuer -dates 2>/dev/null || echo "  证书解析失败"
+  fi
+}
+
+clear_ssl() {
+  local yes
+  echo
+  read -rp "  确认清除 SSL 配置并恢复 HTTP 明文模式？[y/N]: " yes
+  [[ ${yes,,} == y ]] || { echo "  已取消"; return; }
+  update_json_val "cert_file" ""
+  update_json_val "key_file" ""
+  update_json_val "ssl_mode" "none"
+  svc_restart
+  echo -e "  ${G}SSL 配置已清除，面板恢复 HTTP 明文模式${N}"
+}
+
+setup_caddy() {
+  local dom port force new_dom
+  port=$(web_port)
+  dom=$(sed -n 's/.*"domain"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null || true)
+
+  echo
+  echo -e "${B}  一键配置 Caddy 443 自动化反向代理${N}"
+  echo -e "${D}  Caddy 自动申请与管理 Let's Encrypt 证书，实现免端口 (443) 纯净访问。${N}"
+  echo
+
+  # 443 端口与 Xray Reality 节点占用前置检测
+  local p443
+  p443=$(ss -tlnp 2>/dev/null | grep -E ':(443|https)\b' || true)
+  if [[ -n "$p443" ]]; then
+    echo -e "  ${R}⚠️ 警告: 检测到 443 端口已被系统程序占用！${N}"
+    echo -e "  ${D}${p443}${N}"
+    if echo "$p443" | grep -qiE 'xray|3x-ui|xcl'; then
+      echo -e "  ${Y}检测到 Xray / 3x-ui 节点正在使用 443 端口 (如 Reality 偷跑 443)。${N}"
+      echo -e "  ${Y}Caddy 反代需要独占母机 443 端口，若继续部署将导致 Reality 节点冲突失效！${N}"
+      echo -e "  ${G}建议：保留 443 给节点，使用「f ssl」配置面板原生 HTTPS (如 https://域名:${port}/)${N}"
+    fi
+    read -rp "  是否仍要强制继续配置 Caddy？[y/N]: " force
+    [[ ${force,,} == y ]] || { echo "  已取消"; return; }
+  fi
+
+  if [[ -z "$dom" ]]; then
+    read -rp "  输入解析到本 VPS 的域名 (例如 panel.example.com): " dom
+    dom=$(echo "${dom:-}" | sed -e 's|^https*://||' -e 's|/.*||' -e 's|:.*||' | tr '[:upper:]' '[:lower:]' | xargs)
+    [[ -z "$dom" ]] && { echo -e "  ${R}域名不能为空${N}"; return; }
+    update_json_val "domain" "$dom"
+  else
+    read -rp "  使用域名 [当前: ${dom}] (直接回车保持，或输入新域名): " new_dom
+    if [[ -n "${new_dom:-}" ]]; then
+      dom=$(echo "$new_dom" | sed -e 's|^https*://||' -e 's|/.*||' -e 's|:.*||' | tr '[:upper:]' '[:lower:]' | xargs)
+      update_json_val "domain" "$dom"
+    fi
+  fi
+
+  # 安装 Caddy
+  if ! command -v caddy >/dev/null 2>&1; then
+    echo "  正在安装 Caddy..."
+    local mgr
+    mgr=$(for m in apt-get dnf yum pacman apk zypper; do command -v "$m" >/dev/null && echo "$m" && break; done || true)
+    case "${mgr:-}" in
+      apt-get)
+        apt-get install -y -qq debian-keyring debian-archive-keyring apt-transport-https curl >/dev/null 2>&1 || true
+        curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg 2>/dev/null || true
+        curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list >/dev/null 2>&1 || true
+        apt-get update -qq && apt-get install -y -qq caddy >/dev/null 2>&1
+        ;;
+      dnf|yum)
+        $mgr install -y -q 'dnf-command(copr)' >/dev/null 2>&1 || true
+        $mgr copr enable -y @caddy/caddy >/dev/null 2>&1 || true
+        $mgr install -y -q caddy >/dev/null 2>&1
+        ;;
+      apk)
+        apk add --no-cache caddy >/dev/null 2>&1
+        ;;
+      *)
+        echo -e "  ${R}未识别的包管理器，请先手动安装 Caddy${N}"; return
+        ;;
+    esac
+  fi
+
+  if ! command -v caddy >/dev/null 2>&1; then
+    echo -e "  ${R}Caddy 安装失败，请手动安装后重试${N}"; return
+  fi
+
+  # 写入 Caddyfile
+  mkdir -p /etc/caddy
+  cat > /etc/caddy/Caddyfile <<EOF
+${dom} {
+    encode gzip
+    reverse_proxy 127.0.0.1:${port}
+}
+EOF
+
+  # 将面板收敛至 127.0.0.1 本地监听，并设置 ssl_mode = caddy
+  update_json_val "listen_addr" "127.0.0.1"
+  update_json_val "ssl_mode" "caddy"
+  update_json_val "cert_file" ""
+  update_json_val "key_file" ""
+
+  # 启动/重启 Caddy
+  if command -v systemctl >/dev/null 2>&1; then
+    systemctl enable caddy >/dev/null 2>&1 || true
+    systemctl restart caddy
+  elif command -v rc-service >/dev/null 2>&1; then
+    rc-update add caddy default >/dev/null 2>&1 || true
+    rc-service caddy restart
+  fi
+
+  svc_restart
+  local bp
+  bp=$(cat "$WORK_DIR/basepath" 2>/dev/null || echo "")
+  echo
+  echo -e "  ${G}✓ Caddy 443 自动化反代已就绪！${N}"
+  echo -e "  管理面板地址: ${B}https://${dom}/${bp}/${N} (免端口)"
+  echo -e "  面板本地监听: ${D}http://127.0.0.1:${port}/${bp}/${N}"
+}
+
+ssl_menu() {
+  while true; do
+    local dom cf kf sm sub_ch
+    dom=$(sed -n 's/.*"domain"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null || true)
+    cf=$(sed -n 's/.*"cert_file"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null || true)
+    kf=$(sed -n 's/.*"key_file"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null || true)
+    sm=$(sed -n 's/.*"ssl_mode"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null || true)
+
+    echo
+    echo -e "${B}  域名与 SSL (HTTPS) 管理${N}"
+    echo -e "  绑定域名: ${B}${dom:-未绑定}${N}"
+    echo -e "  SSL 模式: ${G}${sm:-none}${N}"
+    echo -e "  证书文件: ${D}${cf:-未设置}${N}"
+    echo -e "  私钥文件: ${D}${kf:-未设置}${N}"
+    echo -e "${D}  ─────────────────────────────${N}"
+    echo "   1) 设置/修改面板域名"
+    echo "   2) 绑定已有自定义证书 (.crt/.pem 与 .key)"
+    echo "   3) 一键申请 ACME 免费证书 (80 端口 Standalone 模式)"
+    echo "   4) 一键申请 ACME 免费证书 (Cloudflare DNS API 零端口模式)"
+    echo "   5) 一键配置 Caddy 443 自动化反向代理 (免端口)"
+    echo "   6) 检测当前证书有效性与剩余天数"
+    echo "   7) 清除 SSL 证书 (恢复 HTTP 明文访问)"
+    echo "   0) 返回主菜单"
+    echo -e "${D}  ─────────────────────────────${N}"
+    read -rp "  选择: " sub_ch
+
+    case "${sub_ch:-}" in
+      1) set_domain; pause ;;
+      2) bind_custom_ssl; pause ;;
+      3) acme_standalone; pause ;;
+      4) acme_cf_dns; pause ;;
+      5) setup_caddy; pause ;;
+      6) inspect_ssl; pause ;;
+      7) clear_ssl; pause ;;
+      0) return ;;
+      *) ;;
+    esac
+  done
+}
+
 menu() {
   while true; do
     clear
@@ -328,10 +704,10 @@ menu() {
     echo "   5) 隧道列表      6) 连接信息"
     echo
     echo "   7) 改端口        8) 改口令"
-    echo "   9) 改访问路径   10) 开机自启开关"
+    echo "   9) 改访问路径   10) 域名与 SSL 设置"
     echo
-    echo "  11) 更新         12) 卸载"
-    echo "  13) 项目开源地址"
+    echo "  11) 开机自启开关 12) 更新"
+    echo "  13) 卸载         14) 项目开源地址"
     echo "   0) 退出"
     echo -e "${D}  ─────────────────────────────${N}"
     read -rp "  选择: " choice
@@ -346,7 +722,8 @@ menu() {
       7) change_port; pause ;;
       8) reset_password; pause ;;
       9) reset_basepath; pause ;;
-      10)
+      10) ssl_menu ;;
+      11)
         if svc_is_enabled; then
           svc_disable
           echo -e "\n  ${Y}已关闭开机自启${N}"
@@ -355,9 +732,9 @@ menu() {
           echo -e "\n  ${G}已开启开机自启${N}"
         fi
         pause ;;
-      11) do_update; pause ;;
-      13) show_links; pause ;;
-      12) do_uninstall; pause ;;
+      12) do_update; pause ;;
+      13) do_uninstall; pause ;;
+      14) show_links; pause ;;
       0) exit 0 ;;
       *) ;;
     esac
@@ -368,18 +745,21 @@ need_root
 
 # 带参数时当普通命令用，不进菜单
 case "${1:-}" in
-  start)    svc_start ;;
-  stop)     svc_stop ;;
-  restart)  svc_restart ;;
-  status)   svc_status_page ;;
-  log)      svc_logs_follow ;;
-  info)     show_info ;;
-  list)     list_tunnels ;;
-  update)   do_update ;;
+  start)     svc_start ;;
+  stop)      svc_stop ;;
+  restart)   svc_restart ;;
+  status)    svc_status_page ;;
+  log)       svc_logs_follow ;;
+  info)      show_info ;;
+  list)      list_tunnels ;;
+  domain)    shift; set_domain "$@" ;;
+  ssl)       shift; ssl_menu "$@" ;;
+  caddy)     shift; setup_caddy "$@" ;;
+  update)    do_update ;;
   uninstall) do_uninstall ;;
-  "")       menu ;;
+  "")        menu ;;
   *)
-    echo "用法: f [start|stop|restart|status|log|info|list|update|uninstall]"
+    echo "用法: f [start|stop|restart|status|log|info|list|domain|ssl|caddy|update|uninstall]"
     echo "不带参数进入交互菜单"
     ;;
 esac

@@ -30,14 +30,22 @@ fi
 
 # seed_settings 把端口落进 settings.json —— 程序、f 菜单、Web 界面都以它为准。
 #
-# 重装时不覆盖用户已经改过的端口：除非这次显式指定了 WEB_PORT，
-# 否则沿用原值，免得重装一次把人家改好的端口打回默认。
+# 重装或更新时不覆盖用户已经配置的端口、域名及 SSL 证书字段：
+# 除非这次显式指定了 WEB_PORT，否则沿用原值；若显式指定端口，也仅更新端口字段，
+# 绝不抹除 domain / cert_file / key_file 等高级设置。
 seed_settings() {
   local f="${WORK_DIR}/settings.json"
-  if [[ -f "$f" ]] && [[ -z "${WEB_PORT_EXPLICIT:-}" ]]; then
-    local cur
-    cur=$(sed -n 's/.*"port"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p' "$f" | head -1)
-    [[ -n $cur ]] && { WEB_PORT="$cur"; return; }
+  if [[ -f "$f" ]]; then
+    if [[ -z "${WEB_PORT_EXPLICIT:-}" ]]; then
+      local cur
+      cur=$(sed -n 's/.*"port"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p' "$f" | head -1)
+      [[ -n $cur ]] && { WEB_PORT="$cur"; return; }
+    else
+      # 显式指定了端口：只更新 port 字段，保留其它已配字段
+      sed -i "s/\"port\"[[:space:]]*:[[:space:]]*[0-9]*/\"port\": ${WEB_PORT}/" "$f"
+      chmod 600 "$f"
+      return
+    fi
   fi
   printf '{\n  "port": %s,\n  "listen_addr": ""\n}\n' "$WEB_PORT" > "$f"
   chmod 600 "$f"
