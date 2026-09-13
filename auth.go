@@ -113,6 +113,13 @@ func (a *Auth) SetPassword(pw string) error {
 	return nil
 }
 
+// Password 返回当前访问口令。
+func (a *Auth) Password() string {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.password
+}
+
 // issue 发一个会话 token。
 func (a *Auth) issue() (string, error) {
 	tok, err := randomToken(16)
@@ -146,6 +153,17 @@ func (a *Auth) Wrap(next http.Handler) http.Handler {
 		if r.URL.Path == "/login" {
 			a.handleLogin(w, r)
 			return
+		}
+		// 客户端订阅免 cookie 访问（凭 token 或密码鉴权）
+		if r.URL.Path == "/sub" || r.URL.Path == "/api/sub" {
+			tok := r.URL.Query().Get("token")
+			if tok == "" {
+				tok = r.URL.Query().Get("pwd")
+			}
+			if tok != "" && (a.check(tok) || a.valid(tok)) {
+				next.ServeHTTP(w, r)
+				return
+			}
 		}
 		if c, err := r.Cookie(sessionCookie); err == nil && a.valid(c.Value) {
 			next.ServeHTTP(w, r)

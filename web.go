@@ -514,7 +514,7 @@ textarea:focus{outline:none;border-color:var(--accent)}
 <div class="modal" id="export">
   <div class="sheet">
     <div class="head">
-      <h2>节点链接</h2>
+      <h2>节点链接与客户端订阅</h2>
       <span class="count" id="excount"></span>
       <span class="spacer"></span>
       <button id="copyall">
@@ -525,7 +525,22 @@ textarea:focus{outline:none;border-color:var(--accent)}
         <svg viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
       </button>
     </div>
-    <div class="body"><textarea id="exbox" spellcheck="false" readonly></textarea></div>
+    <div class="body">
+      <div style="margin-bottom:12px;padding:10px 12px;background:#0e1116;border:1px solid var(--line);border-radius:4px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+          <span style="font-size:14px">📡</span>
+          <strong style="font-size:12px">客户端一键订阅链接（可直接添加至 V2RayN / Shadowrocket / Clash 等自动同步全部节点）：</strong>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="text" id="subUrlInput" readonly style="font-size:12px;flex:1;background:#181c23;border:1px solid var(--line);padding:5px 8px">
+          <button type="button" class="primary" id="copySubUrlBtn">复制订阅链接</button>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;margin-bottom:6px;gap:8px">
+        <span style="font-size:12px;color:var(--dim)">📋 明细节点分享链接列表（包含母机直连与所有出口节点）：</span>
+      </div>
+      <textarea id="exbox" spellcheck="false" readonly style="min-height:220px"></textarea>
+    </div>
   </div>
 </div>
 
@@ -862,8 +877,8 @@ const STATUS = {up:'已连通', starting:'连接中', failed:'失败', stopped:'
 function renderExits(){
   const list = $('#list');
   const n = view.exits.length;
-  $('#ecount').textContent = n ? n + ' 个' : '';
-  $('#exportAll').disabled = !view.exits.some(e => e.inbounds && e.inbounds.length);
+  const totalInbounds = (view.direct || []).length + view.exits.reduce((acc, e) => acc + (e.inbounds || []).length, 0);
+  $('#exportAll').disabled = !totalInbounds;
   $('#stopall').disabled = !n;
 
   if(!n){
@@ -1925,18 +1940,34 @@ $('#crsave').onclick = async e => {
 
 // ---- 导出 ----
 $('#exportAll').onclick = async () => {
-  const ids = view.exits.flatMap(x => (x.inbounds || []).map(i => i.id));
+  const ids = [];
+  // 先加入母机直连节点
+  (view.direct || []).forEach(i => ids.push(i.id));
+  // 再加入各个出口挂载的节点
+  (view.exits || []).forEach(x => (x.inbounds || []).forEach(i => ids.push(i.id)));
   if(!ids.length){ toast('还没有节点可导出', true); return; }
+
+  // 构造标准客户端订阅 URL
+  let bp = (location.pathname || '').replace(/\/+$/, '');
+  let subUrl = location.origin + bp + '/sub';
+  if(view.sub_token){
+    subUrl += '?token=' + encodeURIComponent(view.sub_token);
+  }
+  const subEl = $('#subUrlInput');
+  if(subEl) subEl.value = subUrl;
+
   $('#exbox').value = '读取中…';
   $('#excount').textContent = '';
   openModal('export');
   try{
     const d = await api('/api/xui/links?ids=' + ids.join(','));
     $('#exbox').value = (d.links || []).join('\n');
-    $('#excount').textContent = (d.links || []).length + ' 条';
+    $('#excount').textContent = (d.links || []).length + ' 条 (含母机直连与全部出口)';
   }catch(err){ $('#exbox').value = '导出失败: ' + err.message; }
 };
 $('#copyall').onclick = () => { const v = $('#exbox').value; if(v) copy(v); };
+const copySubBtn = $('#copySubUrlBtn');
+if(copySubBtn) copySubBtn.onclick = () => { const v = $('#subUrlInput').value; if(v) copy(v); };
 
 // ---- 设置：改密码 / 改路径 / 改端口 / 改本地监听 ----
 let curSettings = null;

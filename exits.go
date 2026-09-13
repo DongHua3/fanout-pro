@@ -46,6 +46,8 @@ type ExitsView struct {
 	PanelInfo string `json:"panel_info"`
 	// PublicIP 是母机公网 IPv4，前端用它当 SOCKS5/分享链接的连接地址
 	PublicIP string `json:"public_ip"`
+	// SubToken 客户端订阅访问凭据
+	SubToken string `json:"sub_token"`
 }
 
 // inboundCache 给入站列表做很短的缓存。界面每几秒轮询一次，

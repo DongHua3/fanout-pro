@@ -173,3 +173,15 @@ func TestAPIXUIBindDirectUnbind(t *testing.T) {
 		t.Errorf("Expected error message in body, got %s", w.Body.String())
 	}
 }
+
+func TestAPISubscription(t *testing.T) {
+	testDir := t.TempDir()
+	mgr := &Manager{
+		workDir: testDir,
+	}
+	handler := apiSubscription(mgr)
+	req := httptest.NewRequest(http.MethodGet, "/sub", nil)
+	w := httptest.NewRecorder()
+	handler(w, req)
+	t.Logf("apiSubscription status: %d", w.Code)
+}

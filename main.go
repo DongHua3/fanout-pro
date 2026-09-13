@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -101,7 +102,6 @@ func main() {
 	mux.HandleFunc("/api/provision", apiProvision(mgr))
 	mux.HandleFunc("/api/jobs", apiJobs(mgr))
 	mux.HandleFunc("/api/jobs/dismiss", apiJobDismiss(mgr))
-	mux.HandleFunc("/api/exits", apiExits(mgr))
 	mux.HandleFunc("/api/xui", apiXUIStatus)
 	mux.HandleFunc("/api/xui/inbounds", apiXUIInbounds(mgr))
 	mux.HandleFunc("/api/xui/bind", apiXUIBind(mgr))
@@ -116,7 +116,6 @@ func main() {
 	mux.HandleFunc("/api/panel/client/reset", apiClientReset(mgr))
 	mux.HandleFunc("/api/panel/mode", apiPanelMode(*workDir))
 	mux.HandleFunc("/api/port/check", apiPortCheck)
-
 	auth, created, err := NewAuth(*workDir)
 	if err != nil {
 		log.Fatalf("初始化访问口令失败: %v", err)
@@ -124,6 +123,10 @@ func main() {
 	if created {
 		log.Printf("已生成访问口令，见 %s", filepath.Join(*workDir, "password"))
 	}
+
+	mux.HandleFunc("/api/exits", apiExits(mgr, auth))
+	mux.HandleFunc("/api/sub", apiSubscription(mgr))
+	mux.HandleFunc("/sub", apiSubscription(mgr))
 
 	bpCreated, err := initBasePath(*workDir)
 	if err != nil {
@@ -584,9 +587,47 @@ func apiUpdateApply(w http.ResponseWriter, r *http.Request) {
 }
 
 // apiExits 返回主界面需要的一切：出口以及挂在它上面的入站。
-func apiExits(m *Manager) http.HandlerFunc {
+func apiExits(m *Manager, a *Auth) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, m.ExitsOf())
+		view := m.ExitsOf()
+		if a != nil {
+			view.SubToken = a.Password()
+		}
+		writeJSON(w, http.StatusOK, view)
+	}
+}
+
+// apiSubscription 提供标准 Base64 订阅源，包含母机直连与全部出口节点
+func apiSubscription(m *Manager) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		x, err := openPanel()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		list, err := x.Inbounds(nil)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		var ids []int
+		for _, ib := range list {
+			if ib.Enable {
+				ids = append(ids, ib.ID)
+			}
+		}
+		host := publicHost(r)
+		links, err := x.InboundLinks(ids, host)
+		if err != nil && len(links) == 0 {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		allText := strings.Join(links, "\n")
+		b64 := base64.StdEncoding.EncodeToString([]byte(allText))
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("Subscription-Userinfo", "upload=0; download=0; total=1073741824000; expire=0")
+		w.Header().Set("Profile-Update-Interval", "24")
+		_, _ = w.Write([]byte(b64))
 	}
 }
 
