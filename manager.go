@@ -207,19 +207,31 @@ func (m *Manager) tryCandidates(t *Tunnel, notify bool) bool {
 			t.Err = fmt.Sprintf("已换到第 %d 个候选节点", i+1)
 		}
 
-		err := m.tryNode(t)
-		if err == nil {
-			t.Status = "up"
-			t.Err = ""
-			if serr := m.saveState(); serr != nil {
-				log.Printf("保存状态失败: %v", serr)
-			}
-			if notify {
-				m.notifyPanel()
-			}
-			return true
+		// 针对当前节点（特别是用户手动挑选的节点 i == 0）给予优先重试机会，
+		// 避免因偶发网络波动或握手稍慢就轻易换成其他随机节点
+		maxAttempts := 1
+		if i == 0 {
+			maxAttempts = 2
 		}
-		t.teardownNetns()
+
+		for attempt := 0; attempt < maxAttempts; attempt++ {
+			err := m.tryNode(t)
+			if err == nil {
+				t.Status = "up"
+				t.Err = ""
+				if serr := m.saveState(); serr != nil {
+					log.Printf("保存状态失败: %v", serr)
+				}
+				if notify {
+					m.notifyPanel()
+				}
+				return true
+			}
+			t.teardownNetns()
+			if attempt < maxAttempts-1 {
+				time.Sleep(2 * time.Second)
+			}
+		}
 	}
 	return false
 }

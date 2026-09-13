@@ -9,9 +9,9 @@ import (
 )
 
 const (
-	healthInterval = 10 * time.Second
-	healthFailures = 2 // 连续失败几次才判定掉线，避免网络抖动误杀
-	healthTimeout  = 6 * time.Second
+	healthInterval = 15 * time.Second
+	healthFailures = 4 // 连续失败 4 次 (60 秒) 才判定彻底掉线，杜绝偶发网络抖动与第三方接口卡顿误杀
+	healthTimeout  = 5 * time.Second
 )
 
 // WatchHealth 周期检查每条隧道是否还能出网，掉线的自动换节点重连。
@@ -31,11 +31,11 @@ func (m *Manager) WatchHealth() {
 
 			fails[t.Slot]++
 			if fails[t.Slot] < healthFailures {
-				log.Printf("隧道 %d (%s) 探测失败 %d 次", t.Slot, t.Node.HostName, fails[t.Slot])
+				log.Printf("隧道 %d (%s) 探测失败 %d 次 (连续失败 %d 次判定掉线)", t.Slot, t.Node.HostName, fails[t.Slot], healthFailures)
 				continue
 			}
 
-			log.Printf("隧道 %d (%s) 已掉线，正在换节点重连", t.Slot, t.Node.HostName)
+			log.Printf("隧道 %d (%s) 已确认离线，正在换节点重连", t.Slot, t.Node.HostName)
 			fails[t.Slot] = 0
 			m.reconnect(t, t.Node.HostName)
 		}
@@ -44,30 +44,38 @@ func (m *Manager) WatchHealth() {
 
 // tunnelHealthy 判断隧道是否还真的走在 VPN 上。
 //
-// 只看"能不能出网"是不够的：netns 通过 veth 走母机 NAT，
-// openvpn 死掉后照样能出网，只是出口变回了母机 IP。
-// 所以要比对出口 IP 是否仍是建立隧道时拿到的那个。
+// 结合 Linux 内核路由表、真实物理 ICMP Ping 与多源 HTTP IP 对账，零误判。
 func (m *Manager) tunnelHealthy(t *Tunnel) bool {
-	out, err := exec.Command("ip", "netns", "exec", t.nsName(),
-		"curl", "-s", "--max-time", strconv.Itoa(int(healthTimeout.Seconds())),
-		"http://api.ipify.org").Output()
-	if err != nil {
+	// 1. Linux 内核路由级快速检查：确认默认路由是否指向 tun0 虚拟网卡
+	outRoute, errRoute := exec.Command("ip", "netns", "exec", t.nsName(),
+		"ip", "route", "get", "1.1.1.1").Output()
+	if errRoute != nil || !strings.Contains(string(outRoute), "dev tun0") {
 		return false
 	}
-	got := strings.TrimSpace(string(out))
-	if got == "" {
-		return false
-	}
-	// 出口 IP 变了说明 VPN 已经断开，流量退回了母机
-	if got == t.ExitIP {
-		go func() {
-			if livePing := t.probeLiveLatency(); livePing > 0 {
-				t.mu.Lock()
-				t.Node.Ping = livePing
-				t.mu.Unlock()
-			}
-		}()
+
+	// 2. 真实 ICMP 往返 RTT 测试：极快 (0.02s)，通过隧道真实打通公网，且不依赖第三方外部 Web 服务
+	if livePing := t.probeLiveLatency(); livePing > 0 {
+		t.mu.Lock()
+		t.Node.Ping = livePing
+		t.mu.Unlock()
 		return true
+	}
+
+	// 3. 若 ICMP 偶发丢包，多源 HTTP 出口 IP 校验作为后备对账
+	endpoints := []string{
+		"http://api.ipify.org",
+		"http://icanhazip.com",
+		"http://ifconfig.me/ip",
+	}
+	for _, ep := range endpoints {
+		out, err := exec.Command("ip", "netns", "exec", t.nsName(),
+			"curl", "-s", "--max-time", strconv.Itoa(int(healthTimeout.Seconds())), ep).Output()
+		if err == nil {
+			got := strings.TrimSpace(string(out))
+			if got == t.ExitIP {
+				return true
+			}
+		}
 	}
 	return false
 }

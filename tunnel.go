@@ -243,16 +243,23 @@ func (t *Tunnel) setCredential(c SocksCred) {
 
 // probeExitIP 通过隧道查询出口 IP，用于确认这条隧道确实换了 IP。
 func (t *Tunnel) probeExitIP() (string, error) {
-	out, err := exec.Command("ip", "netns", "exec", t.nsName(),
-		"curl", "-s", "--max-time", "15", "http://api.ipify.org").Output()
-	if err != nil {
-		return "", fmt.Errorf("查询出口 IP 失败: %w", err)
+	endpoints := []string{
+		"http://api.ipify.org",
+		"http://icanhazip.com",
+		"http://ifconfig.me/ip",
+		"http://api.ip.sb/ip",
 	}
-	ip := strings.TrimSpace(string(out))
-	if net.ParseIP(ip) == nil {
-		return "", fmt.Errorf("出口 IP 返回异常: %q", ip)
+	for _, ep := range endpoints {
+		out, err := exec.Command("ip", "netns", "exec", t.nsName(),
+			"curl", "-s", "--max-time", "6", ep).Output()
+		if err == nil {
+			ip := strings.TrimSpace(string(out))
+			if net.ParseIP(ip) != nil {
+				return ip, nil
+			}
+		}
 	}
-	return ip, nil
+	return "", fmt.Errorf("所有出口 IP 查询服务均无响应")
 }
 
 func parsePingOutput(s string) int {
