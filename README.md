@@ -1,38 +1,63 @@
-# fanout
+# fanout-pro (Fanout 增强版)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![GitHub release](https://img.shields.io/github/v/release/DongHua3/fanout-pro)](https://github.com/DongHua3/fanout-pro/releases)
 
-把 VPN Gate 的公共节点变成本地 SOCKS5 端口：一个端口一个出口 IP。
-再给每个出口挂一个节点链接，客户端连哪个端口就从哪个国家出去。
+基于原版 fanout 深度重构与增强的 VPN Gate 出口网关与 3X-UI / Xray 智能分流路由系统。
 
-节点链接有三种管法：同机装了 3x-ui 或 xray-cf-lite 就接管它们的入站，
-都没装则 fanout 自己跑 Xray，建站、改站、发链接都在同一个界面里完成。
+把 VPN Gate 节点变成本地 SOCKS5 端口，支持 3X-UI 面板入站自由解绑/挂载、全节点质量大厅（家庭宽带/机房识别、IP 纯净度分、多维测速排序）与智能端口推荐。
 
-![主界面](https://images.joeyblog.net/2026/7/27/fanout-dashboard.png)
+---
 
-四条隧道跑在一台机器上，四个端口对应四个国家的出口，母机自己的 IP 不受影响：
+## 🌟 增强版新增特性
 
-![出口验证](https://images.joeyblog.net/2026/7/26/fanout-6-exit-ip.png)
+1. **🌟 全节点大厅 (Node Explorer)**：
+   - 界面顶栏直达「🌟 节点大厅」，可一览所有可用的 VPN Gate 节点。
+   - **IP 质量画像**：结合 ippure.com / ping0.cc 理念，智能识别 `🏠 家庭宽带 (Residential)` 与 `🏢 机房 IDC`，计算纯净度与欺诈风险评分，展示运营商 ISP 与 ASN。
+   - **多维自由排序**：支持按「质量评分降序」、「速度降序」、「Ping 延迟升序」自由排序与搜索。
+   - **一键开通出口**：在大厅中看中任一优质节点，一键即可直开出口并挂载分流。
+2. **🔄 3X-UI 自由绑定与一键解绑直连**：
+   - **彻底修复解绑 Bug**：解决原版绑定出口后无法解除、无法退回直连的问题。
+   - **单 443 核心节点场景完美支持**：支持只建一个 443 节点，日常保留母机直连（`freedom`），需要时自由挂载住宅/多国出口，不需要时一键点击「恢复直连」，瞬时清空 fanout 路由规则。
+3. **🎯 常用端口推荐与冲突检测**：
+   - 新建或修改入站端口时，智能展示常用推荐端口（443、8443、2053、2083、2096、80、8080 等）。
+   - 实时比对本机与 3x-ui 已占用端口，已被占用的标红警示，空闲推荐的一键点击填入。
+4. **⚡ 批量质量检测与 24h 本地持久化缓存**：
+   - 内置批量 IP 质量评估引擎，自动持久化缓存 24 小时，避免重复消耗请求。
 
-## 原理
+---
 
-每个节点跑在独立的 network namespace 里，netns 内启动官方 openvpn 客户端。
-SOCKS5 监听在母机，出站连接用 `setns` 切进对应 netns 建立。
+## 快速安装与更新
 
-这样做的好处：VPN 的路由劫持只影响自己的 netns，不会切断母机的网络；
-多个节点互不干扰，各自一个出口 IP。
+需要 root 权限，Linux 系统（依赖 netns 与 openvpn）。
 
-```
-客户端 ──> 母机 SOCKS5 :随机端口 ──> netns foN ──> openvpn ──> VPN Gate 节点
-```
-
-## 安装
-
-需要 root，Linux（依赖 netns）。
+### 一键安装 / 更新
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/byJoey/fanout/main/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/DongHua3/fanout-pro/main/install.sh)
 ```
+
+### 已安装旧版如何更新到 Pro 增强版？
+
+若您的机器上已安装了旧版 fanout，可通过以下任一方式无缝升级到增强版：
+
+**方式一：一键更新命令**
+```bash
+REPO="DongHua3/fanout-pro" f update
+```
+或直接重新运行安装脚本（会自动保留您原有的端口、密码与配置）：
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/DongHua3/fanout-pro/main/install.sh)
+```
+
+**方式二：源码拉取与编译更新**
+```bash
+git clone https://github.com/DongHua3/fanout-pro.git
+cd fanout-pro
+go build -trimpath -ldflags "-s -w" -o /usr/local/bin/fanout .
+systemctl restart fanout
+```
+升级完成后，浏览器按 `Ctrl + F5` 强制刷新管理界面，即可看到顶栏的 **「🌟 节点大厅」**、**核心 443 入站与直连卡片** 以及 **解绑直连** 按钮！
 
 会自动下载对应架构的预编译二进制。也可以 clone 仓库后在源码目录运行同一个脚本，
 那样会从源码编译（需要 Go 1.21+）。
