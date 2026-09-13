@@ -831,7 +831,15 @@ func (x *XUI) CloneToTunnelWithPort(templateID int, host string, port int, tunne
 	}
 
 	targetPort := port
-	if targetPort <= 0 || used[targetPort] || !portAvailable(targetPort) {
+	if targetPort > 0 {
+		if used[targetPort] {
+			return 0, fmt.Errorf("端口 %d 已被占用", targetPort)
+		}
+		if !portAvailable(targetPort) {
+			return 0, fmt.Errorf("端口 %d 已被系统其它程序（如 Nginx/3x-ui/Web服务）占用", targetPort)
+		}
+	} else {
+		var err error
 		targetPort, err = freeRandomPort(used)
 		if err != nil {
 			return 0, err

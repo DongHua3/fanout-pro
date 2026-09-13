@@ -794,6 +794,7 @@ function renderPortRecommendations(containerId, statusId, inputId, saveBtnId, ex
   validatePortInput(inputEl, statusEl, saveBtnId, occupied);
 }
 
+let portCheckSeq = 0;
 function validatePortInput(inputEl, statusEl, saveBtnId, occupied){
   const saveBtn = saveBtnId ? $('#' + saveBtnId) : null;
   const val = parseInt((inputEl.value || '').trim(), 10);
@@ -815,9 +816,27 @@ function validatePortInput(inputEl, statusEl, saveBtnId, occupied){
     if(saveBtn) saveBtn.disabled = true;
     return;
   }
-  statusEl.className = 'port-status ok';
-  statusEl.textContent = '✅ 端口 ' + val + ' 可用';
-  if(saveBtn) saveBtn.disabled = false;
+
+  statusEl.className = 'port-status';
+  statusEl.textContent = '🔍 正在探测端口可用性...';
+  const seq = ++portCheckSeq;
+  api('/api/port/check?port=' + val).then(res => {
+    if(seq !== portCheckSeq) return;
+    if(res && res.available){
+      statusEl.className = 'port-status ok';
+      statusEl.textContent = '✅ 端口 ' + val + ' 可用';
+      if(saveBtn) saveBtn.disabled = false;
+    } else {
+      statusEl.className = 'port-status bad';
+      statusEl.textContent = '❌ ' + (res.reason || ('端口 ' + val + ' 不可用'));
+      if(saveBtn) saveBtn.disabled = true;
+    }
+  }).catch(() => {
+    if(seq !== portCheckSeq) return;
+    statusEl.className = 'port-status ok';
+    statusEl.textContent = '✅ 端口 ' + val + ' 格式有效';
+    if(saveBtn) saveBtn.disabled = false;
+  });
 }
 
 function getPrimaryInboundPort(){

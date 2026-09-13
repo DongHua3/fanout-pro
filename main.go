@@ -115,6 +115,7 @@ func main() {
 	mux.HandleFunc("/api/panel/client/del", apiClientDelete(mgr))
 	mux.HandleFunc("/api/panel/client/reset", apiClientReset(mgr))
 	mux.HandleFunc("/api/panel/mode", apiPanelMode(*workDir))
+	mux.HandleFunc("/api/port/check", apiPortCheck)
 
 	auth, created, err := NewAuth(*workDir)
 	if err != nil {
@@ -834,6 +835,38 @@ func apiXUIClone(m *Manager) http.HandlerFunc {
 		invalidateInbounds()
 		writeJSON(w, http.StatusOK, map[string]any{"created": ports})
 	}
+}
+
+// apiPortCheck 实时探测指定端口在操作系统上是否真正空闲可用
+func apiPortCheck(w http.ResponseWriter, r *http.Request) {
+	port, err := strconv.Atoi(r.URL.Query().Get("port"))
+	if err != nil || port < 1 || port > 65535 {
+		writeJSON(w, http.StatusOK, map[string]any{"available": false, "reason": "端口超出合法范围 (1 ~ 65535)"})
+		return
+	}
+	// 检查外部 xray 配置
+	ext := externalUsedPorts()
+	if ext[port] {
+		writeJSON(w, http.StatusOK, map[string]any{"available": false, "reason": fmt.Sprintf("端口 %d 已被外部 Xray 配置占用", port)})
+		return
+	}
+	// 检查当前 panel 占用的端口
+	if p, err := openPanel(); err == nil {
+		if inbounds, err := p.Inbounds(nil); err == nil {
+			for _, ib := range inbounds {
+				if ib.Port == port {
+					writeJSON(w, http.StatusOK, map[string]any{"available": false, "reason": fmt.Sprintf("端口 %d 已被现有节点 %s 占用", port, ib.Remark)})
+					return
+				}
+			}
+		}
+	}
+	// 操作系统真实 bind 测试
+	if !portAvailable(port) {
+		writeJSON(w, http.StatusOK, map[string]any{"available": false, "reason": fmt.Sprintf("端口 %d 已被系统其它程序（如 Nginx/3x-ui/Web服务）占用", port)})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"available": true})
 }
 
 // apiXUIDetail 返回某个入站的详情，含客户端与可直接复制的分享链接。
