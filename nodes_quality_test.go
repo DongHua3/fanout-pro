@@ -233,3 +233,75 @@ func TestAPIPortValidationAndLinks(t *testing.T) {
 		t.Logf("apiXUILinks status: %d (body: %s)", w.Code, w.Body.String())
 	}
 }
+
+func TestExitsOfQualityEnrichment(t *testing.T) {
+	mgr := &Manager{
+		workDir: t.TempDir(),
+		tunnels: map[int]*Tunnel{
+			1: {
+				Slot:   1,
+				Port:   20001,
+				Status: "up",
+				ExitIP: "1.1.1.1",
+				Node: Node{
+					HostName:    "jp-node",
+					IP:          "1.1.1.1",
+					Country:     "Japan",
+					CountryCode: "JP",
+				},
+			},
+			2: {
+				Slot:   2,
+				Port:   20002,
+				Status: "up",
+				ExitIP: "2.2.2.2",
+				Node: Node{
+					HostName:    "us-node",
+					IP:          "2.2.2.2",
+					Country:     "United States",
+					CountryCode: "US",
+				},
+			},
+		},
+	}
+
+	qc := GetQualityCache(mgr.workDir)
+	qc.Set(QualityInfo{
+		IP:        "1.1.1.1",
+		Type:      "residential",
+		TypeLabel: "🏠 家庭宽带",
+		Score:     95,
+		ISP:       "NTT Communications",
+	})
+	qc.Set(QualityInfo{
+		IP:        "2.2.2.2",
+		Type:      "datacenter",
+		TypeLabel: "🏢 机房/IDC",
+		Score:     60,
+		ISP:       "DigitalOcean LLC",
+	})
+
+	view := mgr.ExitsOf()
+	if len(view.Exits) != 2 {
+		t.Fatalf("expected 2 exits, got %d", len(view.Exits))
+	}
+
+	foundJP, foundUS := false, false
+	for _, e := range view.Exits {
+		if e.ExitIP == "1.1.1.1" {
+			foundJP = true
+			if e.Quality.Type != "residential" || e.Quality.Score != 95 || e.Quality.ISP != "NTT Communications" {
+				t.Errorf("unexpected quality for 1.1.1.1: %+v", e.Quality)
+			}
+		} else if e.ExitIP == "2.2.2.2" {
+			foundUS = true
+			if e.Quality.Type != "datacenter" || e.Quality.Score != 60 || e.Quality.ISP != "DigitalOcean LLC" {
+				t.Errorf("unexpected quality for 2.2.2.2: %+v", e.Quality)
+			}
+		}
+	}
+	if !foundJP || !foundUS {
+		t.Errorf("missing expected exits: jp=%v, us=%v", foundJP, foundUS)
+	}
+}
+

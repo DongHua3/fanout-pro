@@ -31,6 +31,7 @@ type Exit struct {
 	SocksUser string        `json:"socks_user"`
 	SocksPass string        `json:"socks_pass"`
 	Inbounds  []ExitInbound `json:"inbounds"`
+	Quality   QualityInfo   `json:"quality"`
 }
 
 // ExitsView 是主界面需要的全部数据。
@@ -117,16 +118,38 @@ func (m *Manager) ExitsOf() ExitsView {
 		}
 	}
 
+	qc := GetQualityCache(m.workDir)
+	ips := make([]string, 0, len(tunnels))
+	for _, t := range tunnels {
+		targetIP := t.ExitIP
+		if targetIP == "" {
+			targetIP = t.Node.IP
+		}
+		if targetIP != "" {
+			ips = append(ips, targetIP)
+		}
+	}
+	qmap := qc.BatchEvaluate(ips)
+
 	byHost := map[string]int{}
 	for i, t := range tunnels {
 		byHost[sanitizeTag(t.Node.HostName)] = i
 		byHost[t.Node.HostName] = i
 		cred := t.credential()
+		targetIP := t.ExitIP
+		if targetIP == "" {
+			targetIP = t.Node.IP
+		}
+		qInfo, ok := qmap[targetIP]
+		if !ok {
+			qInfo = fallbackQuality(targetIP)
+		}
 		view.Exits = append(view.Exits, Exit{
 			Slot: t.Slot, Port: t.Port, Host: t.Node.HostName,
 			Region: t.Node.CountryCode, Country: t.Node.Country,
 			ExitIP: t.ExitIP, Status: t.Status, Err: t.Err, Since: t.Since,
 			SocksUser: cred.User, SocksPass: cred.Pass,
+			Quality:   qInfo,
 		})
 	}
 

@@ -15,75 +15,573 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 const indexHTML = `<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>fanout</title>
+<title>fanout • 工业级控制台</title>
+<script>
+(function(){
+  try{
+    var t = localStorage.getItem('fanout_theme');
+    if(!t){
+      t = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    }
+    document.documentElement.className = t === 'light' ? 'light' : 'dark';
+  }catch(e){}
+})();
+</script>
 <style>
-:root{
-  --bg:#12151a; --panel:#181c23; --line:#262c36; --text:#dde3ec;
-  --dim:#8b95a5; --accent:#4a9eda; --ok:#3fa66b; --warn:#c9903a; --bad:#c25450;
+/* ==========================================================================
+   高对比度设计系统 (Dark High-Contrast / Light Tech)
+   ========================================================================== */
+:root {
+  --bg-canvas: #0b0f19;
+  --bg-header: rgba(11, 15, 25, 0.92);
+  --bg-card: #111827;
+  --bg-card-hover: #162032;
+  --bg-surface: #172033;
+  --bg-surface-sub: #1e293b;
+  --bg-input: #0e1524;
+  
+  --border-card: #1f293d;
+  --border-card-hover: #334155;
+  --border-subtle: #1e293b;
+  --border-strong: #334155;
+
+  --text-main: #ffffff;
+  --text-body: #e2e8f0;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
+
+  --accent-blue: #38bdf8;
+  --accent-blue-bg: rgba(56, 189, 248, 0.12);
+  --accent-blue-border: rgba(56, 189, 248, 0.3);
+
+  --accent-purple: #a78bfa;
+  --accent-purple-bg: rgba(167, 139, 250, 0.12);
+  --accent-purple-border: rgba(167, 139, 250, 0.3);
+
+  --status-up: #10b981;
+  --status-up-bg: rgba(16, 185, 129, 0.12);
+  --status-up-border: rgba(16, 185, 129, 0.3);
+
+  --status-warn: #f59e0b;
+  --status-warn-bg: rgba(245, 158, 11, 0.12);
+  --status-warn-border: rgba(245, 158, 11, 0.3);
+
+  --status-danger: #f43f5e;
+  --status-danger-bg: rgba(244, 63, 94, 0.12);
+  --status-danger-border: rgba(244, 63, 94, 0.3);
+
+  --icon-stroke: #ffffff;
+  --icon-stroke-dim: rgba(255, 255, 255, 0.75);
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", "PingFang SC", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+
+  --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.45);
+  --shadow-modal: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+
+  /* 兼容既有组件变量 */
+  --bg: var(--bg-canvas);
+  --panel: var(--bg-card);
+  --line: var(--border-card);
+  --text: var(--text-body);
+  --dim: var(--text-muted);
+  --accent: var(--accent-blue);
+  --ok: var(--status-up);
+  --warn: var(--status-warn);
+  --bad: var(--status-danger);
 }
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);
-  font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-header{display:flex;align-items:center;gap:16px;padding:10px 16px;
-  border-bottom:1px solid var(--line);background:var(--panel)}
-h1{font-size:13px;font-weight:600;margin:0;letter-spacing:0}
+
+html.light {
+  --bg-canvas: #f8fafc;
+  --bg-header: rgba(255, 255, 255, 0.92);
+  --bg-card: #ffffff;
+  --bg-card-hover: #f1f5f9;
+  --bg-surface: #f1f5f9;
+  --bg-surface-sub: #e2e8f0;
+  --bg-input: #ffffff;
+  
+  --border-card: #e2e8f0;
+  --border-card-hover: #cbd5e1;
+  --border-subtle: #e2e8f0;
+  --border-strong: #cbd5e1;
+
+  --text-main: #0f172a;
+  --text-body: #334155;
+  --text-muted: #64748b;
+  --text-dim: #94a3b8;
+
+  --icon-stroke: #0f172a;
+  --icon-stroke-dim: #475569;
+
+  --accent-blue: #0284c7;
+  --accent-blue-bg: #e0f2fe;
+  --accent-blue-border: #bae6fd;
+
+  --accent-purple: #7c3aed;
+  --accent-purple-bg: #ede9fe;
+  --accent-purple-border: #ddd6fe;
+
+  --status-up: #059669;
+  --status-up-bg: #d1fae5;
+  --status-up-border: #a7f3d0;
+
+  --status-warn: #d97706;
+  --status-warn-bg: #fef3c7;
+  --status-warn-border: #fde68a;
+
+  --status-danger: #e11d48;
+  --status-danger-bg: #ffe4e6;
+  --status-danger-border: #fecdd3;
+
+  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.08);
+  --shadow-modal: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+
+  --bg: var(--bg-canvas);
+  --panel: var(--bg-card);
+  --line: var(--border-card);
+  --text: var(--text-body);
+  --dim: var(--text-muted);
+  --accent: var(--accent-blue);
+  --ok: var(--status-up);
+  --warn: var(--status-warn);
+  --bad: var(--status-danger);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  margin: 0;
+  background: var(--bg-canvas);
+  color: var(--text-body);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s, color 0.2s;
+}
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 纯白矢量 SVG 图标与发光微动效 */
+.icon, .icon-sm, .icon-xs {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  stroke-width: 1.8;
+  stroke: var(--icon-stroke);
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+  transition: stroke 0.15s, filter 0.15s;
+}
+.icon { width: 16px; height: 16px; }
+.icon-sm { width: 14px; height: 14px; stroke-width: 1.8; }
+.icon-xs { width: 12px; height: 12px; stroke-width: 2; }
+
+.btn:hover .icon, .btn:hover .icon-sm, .btn:hover .icon-xs,
+button:hover .icon, button:hover .icon-sm, button:hover .icon-xs,
+.copy-btn:hover .icon-xs, .socks-badge:hover .icon-xs,
+.theme-toggle:hover .icon, .theme-toggle:hover .icon-sm {
+  filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.7));
+}
+html.light .btn:hover .icon, html.light .btn:hover .icon-sm, html.light .btn:hover .icon-xs,
+html.light button:hover .icon, html.light button:hover .icon-sm, html.light button:hover .icon-xs,
+html.light .copy-btn:hover .icon-xs, html.light .socks-badge:hover .icon-xs,
+html.light .theme-toggle:hover .icon, html.light .theme-toggle:hover .icon-sm {
+  filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.3));
+}
+
+svg {
+  width: 14px; height: 14px;
+  stroke: var(--icon-stroke);
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: none;
+  transition: stroke 0.15s, filter 0.15s;
+}
+
+/* 按钮与基础控制 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-card);
+  background: var(--bg-card);
+  color: var(--text-main);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.btn:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-card-hover);
+}
+.btn-primary {
+  background: #0284c7;
+  border-color: #0284c7;
+  color: #fff;
+  font-weight: 600;
+}
+.btn-primary:hover {
+  background: #0369a1;
+  border-color: #0369a1;
+}
+.btn-crystal {
+  background: var(--accent-blue-bg);
+  border: 1px solid var(--accent-blue-border);
+  color: var(--accent-blue);
+  font-weight: 600;
+}
+.btn-crystal:hover {
+  background: var(--accent-blue-border);
+}
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-muted);
+}
+.btn-ghost:hover {
+  background: var(--bg-surface);
+  color: var(--text-main);
+}
+.theme-toggle {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-card);
+  background: var(--bg-surface);
+  color: var(--text-main);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s;
+}
+.theme-toggle:hover {
+  border-color: var(--accent-blue);
+}
+
+/* 徽章与标签 */
+.metric-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.badge-blue { background: var(--accent-blue-bg); color: var(--accent-blue); border: 1px solid var(--accent-blue-border); }
+.badge-purple { background: var(--accent-purple-bg); color: var(--accent-purple); border: 1px solid var(--accent-purple-border); }
+.badge-green { background: var(--status-up-bg); color: var(--status-up); border: 1px solid var(--status-up-border); }
+.badge-amber { background: var(--status-warn-bg); color: var(--status-warn); border: 1px solid var(--status-warn-border); }
+.country-tag {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  letter-spacing: 0.05em;
+}
+.quality-tag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.tag-residential { background: var(--status-up-bg); color: var(--status-up); border: 1px solid var(--status-up-border); }
+.tag-datacenter { background: var(--bg-surface); color: var(--text-muted); border: 1px solid var(--border-card); }
+.dot-indicator { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+header{display:flex;align-items:center;padding:12px 24px;
+  border-bottom:1px solid var(--border-card);background:var(--bg-header);
+  backdrop-filter:blur(16px);position:sticky;top:0;z-index:40}
+.header-inner{max-width:1280px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none}
+.logo-mark{width:28px;height:28px;border-radius:var(--radius-xs);background:linear-gradient(135deg,#0284c7,#4f46e5);
+  display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0}
+.logo-title{font-size:15px;font-weight:700;letter-spacing:-0.02em;color:var(--text-main);display:flex;align-items:center;gap:8px}
+.pro-badge{font-size:10px;font-weight:700;padding:1px 6px;border-radius:var(--radius-full);
+  background:var(--accent-blue-bg);border:1px solid var(--accent-blue-border);color:var(--accent-blue);
+  text-transform:uppercase;letter-spacing:0.05em}
+.host-pill{display:inline-flex;align-items:center;gap:8px;padding:4px 12px;background:var(--bg-surface);
+  border:1px solid var(--border-card);border-radius:var(--radius-full);font-size:12px;color:var(--text-muted)}
+.pulse-dot{width:8px;height:8px;border-radius:50%;background:var(--status-up);box-shadow:0 0 8px var(--status-up)}
+.header-actions{display:flex;align-items:center;gap:8px}
+
+/* 指标概览看板 (Hero Metrics Grid) */
+.metrics-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.metric-card{background:var(--bg-card);border:1px solid var(--border-card);border-radius:var(--radius-md);
+  padding:18px 20px;box-shadow:var(--shadow-card);display:flex;flex-direction:column;justify-content:space-between;transition:all .15s}
+.metric-card:hover{border-color:var(--border-card-hover);transform:translateY(-1px)}
+.metric-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.metric-title{font-size:13px;font-weight:600;color:var(--text-muted);display:flex;align-items:center;gap:7px}
+.metric-val{font-size:20px;font-weight:700;letter-spacing:-0.02em;color:var(--text-main);margin-bottom:4px}
+.metric-desc{font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px}
+
+
+/* ==========================================================================
+   5. 核心入站与流量拓扑管线 (Section Card & Pipeline Component)
+   ========================================================================== */
+.section-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  padding: 20px 22px;
+  box-shadow: var(--shadow-card);
+  margin-bottom: 24px;
+}
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-card);
+}
+.section-title {
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-main);
+}
+.section-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-left: 6px;
+}
+.pipeline-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-md);
+  padding: 18px 22px;
+  margin-bottom: 16px;
+}
+.pipeline-stage {
+  flex: 1;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  transition: all 0.2s;
+}
+.pipeline-stage.core {
+  border-color: var(--accent-purple-border);
+  background: var(--bg-card);
+}
+.pipeline-stage.exit-active {
+  border-color: var(--status-up-border);
+  background: var(--bg-card);
+}
+.pipeline-stage.exit-direct {
+  border-color: var(--status-warn-border);
+  background: var(--bg-card);
+}
+.pipeline-stage-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pipeline-stage-main {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.pipeline-stage-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.pipeline-flow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 6px;
+  color: var(--text-dim);
+  min-width: 70px;
+}
+.flow-line {
+  width: 100%;
+  height: 2px;
+  background: var(--border-strong);
+  position: relative;
+  overflow: hidden;
+  border-radius: 2px;
+}
+.flow-line::after {
+  content: "";
+  position: absolute;
+  top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, var(--accent-blue), transparent);
+  animation: flowLight 2s infinite linear;
+}
+@keyframes flowLight {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+.flow-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--accent-blue-bg);
+  border: 1px solid var(--accent-blue-border);
+  color: var(--accent-blue);
+  white-space: nowrap;
+}
+.pipeline-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: var(--bg-surface);
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-card);
+}
+.select-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.select-label {
+  font-size: 12px;
+  color: var(--text-main);
+  font-weight: 600;
+}
+.pipeline-toolbar .select {
+  background: var(--bg-input);
+  border: 1px solid var(--border-strong);
+  color: var(--text-main);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+  max-width: 480px;
+}
+.pipeline-toolbar .select:focus {
+  border-color: var(--accent-blue);
+}
+.subinbounds-area {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-card);
+}
+.subinbounds-title {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.subinbound-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-sm);
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+h1{font-size:14px;font-weight:700;margin:0;letter-spacing:0}
 .spacer{flex:1}
-button{font:inherit;color:var(--text);background:#222833;border:1px solid var(--line);
-  border-radius:4px;padding:4px 10px;cursor:pointer;display:inline-flex;
-  align-items:center;gap:5px;white-space:nowrap}
-button:hover:not(:disabled){border-color:var(--accent)}
+button{font:inherit;color:var(--text-main);background:var(--bg-surface);border:1px solid var(--border-card);
+  border-radius:var(--radius-xs);padding:5px 12px;cursor:pointer;display:inline-flex;
+  align-items:center;gap:6px;white-space:nowrap;transition:all .15s}
+button:hover:not(:disabled){border-color:var(--accent-blue);background:var(--bg-surface-sub)}
 button:disabled{opacity:.45;cursor:default}
-button.primary{background:var(--accent);border-color:var(--accent);color:#0b0e12;font-weight:600}
-button.icon{padding:3px 6px;background:transparent;border-color:transparent;color:var(--dim)}
-button.icon:hover:not(:disabled){color:var(--accent);border-color:var(--line)}
-button.icon.danger:hover:not(:disabled){color:var(--bad);border-color:rgba(194,84,80,.35)}
-svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8;
-  stroke-linecap:round;stroke-linejoin:round;flex:none}
-main{padding:14px 16px 40px;max-width:1180px;margin:0 auto}
-.bar{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
-.bar h2{font-size:12px;margin:0;font-weight:600;color:var(--dim)}
-.exit{border:1px solid var(--line);border-radius:6px;margin-bottom:8px;
-  background:var(--panel);overflow:hidden}
-.exit>.row{display:grid;gap:6px 12px;align-items:center;padding:9px 12px;
-  grid-template-columns:14px minmax(132px,auto) 1fr auto auto auto;
-  grid-template-areas:"dot ip meta chips socks acts"}
-.exit .dot{grid-area:dot}
-.exit .ip{grid-area:ip}
-.exit .meta{grid-area:meta}
-.exit .chips{grid-area:chips}
-.exit .socks{grid-area:socks}
-.exit .acts{grid-area:acts}
-.dot{width:8px;height:8px;border-radius:50%;background:var(--dim);justify-self:center}
-.dot.up{background:var(--ok)}
-.dot.starting{background:var(--warn);animation:pulse 1.2s ease-in-out infinite}
-.dot.failed{background:var(--bad)}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-.ip{font-weight:600;font-variant-numeric:tabular-nums}
-.meta{color:var(--dim);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.chips{display:flex;gap:6px;flex-wrap:wrap}
-.chip{border:1px solid var(--line);border-radius:3px;padding:1px 7px;font-size:11px;
-  color:var(--dim);cursor:pointer;background:#0e1116}
-.chip:hover{border-color:var(--accent);color:var(--text)}
-.chip.none{border-style:dashed;cursor:default}
-.chip.none:hover{border-color:var(--line);color:var(--dim)}
-.orphan{margin-top:18px;border:1px solid var(--line);border-radius:6px;
-  background:var(--panel);padding:10px 12px}
-.orphan .top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-.orphan .top h3{font-size:12px;margin:0;font-weight:600;color:var(--dim)}
-.socks{color:var(--dim);font-size:12px;font-variant-numeric:tabular-nums}
-.socks button{background:transparent;border-color:transparent;color:var(--dim);
-  font-size:12px;padding:2px 6px;font-variant-numeric:tabular-nums}
-.socks button:hover:not(:disabled){color:var(--accent);border-color:var(--line)}
-.socks button .lock{width:11px;height:11px;stroke-width:2}
-.acts{display:flex;gap:2px;justify-self:end}
-.errline{padding:0 12px 9px 38px;color:var(--bad);font-size:11px;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.empty{border:1px dashed var(--line);border-radius:6px;padding:40px 20px;
-  text-align:center;color:var(--dim)}
+button.primary{background:var(--accent-blue);border-color:var(--accent-blue);color:#fff;font-weight:600}
+button.primary:hover:not(:disabled){background:#0284c7;border-color:#0284c7}
+button.icon{padding:4px 6px;background:transparent;border-color:transparent;color:var(--text-muted)}
+button.icon:hover:not(:disabled){color:var(--text-main);border-color:var(--border-card);background:var(--bg-surface)}
+button.icon.danger:hover:not(:disabled){color:var(--status-danger);border-color:var(--status-danger-border);background:var(--status-danger-bg)}
+main{padding:20px 24px 60px;max-width:1280px;margin:0 auto}
+/* ==========================================================================
+   6. 出口隧道工具栏与卡片列表 (Toolbar & Exit Cards)
+   ========================================================================== */
+.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px}
+.toolbar-left{display:flex;align-items:center;gap:10px}
+.pill-count{font-size:12px;padding:2px 8px;border-radius:var(--radius-full);background:var(--bg-surface);color:var(--text-muted);font-weight:600;border:1px solid var(--border-card)}
+.toolbar-right{display:flex;align-items:center;gap:8px}
+
+.exit-list{display:flex;flex-direction:column;gap:10px}
+.exit-card{background:var(--bg-card);border:1px solid var(--border-card);border-radius:var(--radius-md);
+  padding:14px 20px;box-shadow:var(--shadow-card);display:flex;align-items:center;justify-content:space-between;gap:16px;transition:all .15s}
+.exit-card:hover{border-color:var(--border-card-hover);background:var(--bg-card-hover)}
+.exit-main{display:flex;align-items:center;gap:14px;flex:1.2}
+.exit-ip{font-size:14px;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:8px}
+.copy-btn{font-size:11px;padding:2px 6px;border-radius:4px;background:var(--bg-surface);border:1px solid var(--border-card);color:var(--text-muted);cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:all .15s}
+.copy-btn:hover{background:var(--bg-surface-sub);color:var(--text-main)}
+.exit-meta{font-size:12px;color:var(--text-muted);margin-top:3px;display:flex;align-items:center;gap:8px}
+.exit-time{display:inline-flex;align-items:center;gap:5px;color:var(--status-up);font-size:11px;font-weight:500}
+.exit-bindings{flex:1.4;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.bound-pill{display:inline-flex;align-items:center;padding:3px 8px;border-radius:var(--radius-sm);background:var(--accent-blue-bg);border:1px solid var(--accent-blue-border);color:var(--accent-blue);font-size:12px;font-weight:600;gap:6px}
+.bound-pill.core{background:var(--accent-purple-bg);border-color:var(--accent-purple-border);color:var(--accent-purple)}
+.bound-unbind{font-size:12px;cursor:pointer;padding:1px 4px;border-radius:3px;color:var(--text-muted);transition:all .15s;line-height:1}
+.bound-unbind:hover{background:var(--status-danger);color:#fff}
+.btn-add-bind{border:1px dashed var(--border-strong);background:transparent;padding:3px 8px;font-size:12px;color:var(--text-muted);border-radius:var(--radius-sm);cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:all .15s}
+.btn-add-bind:hover{border-color:var(--accent-blue);color:var(--accent-blue)}
+.exit-actions{display:flex;align-items:center;gap:8px}
+.socks-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:var(--radius-sm);background:var(--bg-surface);border:1px solid var(--border-card);color:var(--text-muted);font-size:12px;cursor:pointer;transition:all .15s}
+.socks-badge:hover{background:var(--bg-surface-sub);color:var(--text-main);border-color:var(--border-strong)}
+.errline{padding:0 12px 9px;color:var(--status-danger);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.empty{border:1px dashed var(--border-card);border-radius:var(--radius-md);padding:40px 20px;text-align:center;color:var(--text-muted)}
 .empty button{margin-top:14px}
 .jobs{margin-bottom:12px}
 .job{border:1px solid var(--line);border-radius:6px;background:var(--panel);
@@ -101,48 +599,45 @@ main{padding:14px 16px 40px;max-width:1180px;margin:0 auto}
 .links{display:flex;gap:14px;margin-right:4px}
 .links a{color:var(--dim);text-decoration:none;font-size:12px}
 .links a:hover{color:var(--accent)}
-@media(max-width:820px){.links{display:none}
-  main{padding:12px 12px 40px}
-  .exit>.row{grid-template-columns:14px 1fr auto;
-    grid-template-areas:"dot ip acts" ". meta meta" ". socks socks" ". chips chips"}
-  .exit .chips{margin-top:2px}
-  .bar{flex-wrap:wrap}}
-.modal{position:fixed;inset:0;background:rgba(8,10,14,.72);display:none;
-  align-items:center;justify-content:center;z-index:50;padding:20px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);display:none;
+  align-items:center;justify-content:center;z-index:50;padding:20px;animation:modalFadeIn .18s ease-out}
 .modal.open{display:flex}
-.sheet{background:var(--bg);border:1px solid var(--line);border-radius:6px;
-  width:min(680px,100%);max-height:86vh;display:flex;flex-direction:column}
-.sheet .head{display:flex;align-items:center;gap:10px;padding:10px 14px;
-  border-bottom:1px solid var(--line);background:var(--panel);border-radius:6px 6px 0 0}
-.sheet .head h2{font-size:12px;margin:0;font-weight:600}
-.sheet .body{overflow:auto;padding:14px}
-.sheet .foot{display:flex;align-items:center;gap:10px;padding:10px 14px;
-  border-top:1px solid var(--line);background:var(--panel);border-radius:0 0 6px 6px}
-.count{color:var(--dim);font-size:11px}
+.sheet{background:var(--bg-card);border:1px solid var(--border-card);border-radius:var(--radius-lg);
+  box-shadow:var(--shadow-modal);width:min(680px,100%);max-height:88vh;display:flex;flex-direction:column;overflow:hidden;
+  animation:modalScaleIn .18s ease-out}
+@keyframes modalFadeIn{from{opacity:0}to{opacity:1}}
+@keyframes modalScaleIn{from{transform:scale(.97);opacity:0}to{transform:scale(1);opacity:1}}
+.sheet .head{display:flex;align-items:center;gap:10px;padding:14px 20px;
+  border-bottom:1px solid var(--border-card);background:var(--bg-card)}
+.sheet .head h2{font-size:14px;margin:0;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:8px}
+.sheet .body{overflow:auto;padding:20px;background:var(--bg-canvas)}
+.sheet .foot{display:flex;align-items:center;gap:10px;padding:14px 20px;
+  border-top:1px solid var(--border-card);background:var(--bg-card)}
+.count{color:var(--text-muted);font-size:11px}
 label.f{display:block;margin-bottom:16px}
 label.f[hidden]{display:none}
-label.f>span{display:block;color:var(--dim);font-size:11px;margin-bottom:6px}
+label.f>span{display:block;color:var(--text-muted);font-size:11px;margin-bottom:6px}
 .regions{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));
   gap:6px;max-height:224px;overflow:auto}
-.rg{border:1px solid var(--line);background:#0e1116;border-radius:4px;padding:7px 9px;
-  cursor:pointer;text-align:left;display:block;width:100%}
-.rg:hover{border-color:var(--accent)}
-.rg.sel{border-color:var(--accent);background:rgba(74,158,218,.1)}
+.rg{border:1px solid var(--border-card);background:var(--bg-surface);border-radius:var(--radius-xs);padding:7px 9px;
+  cursor:pointer;text-align:left;display:block;width:100%;color:var(--text-main);transition:all .15s}
+.rg:hover{border-color:var(--accent-blue);background:var(--bg-surface-sub)}
+.rg.sel{border-color:var(--accent-blue);background:var(--accent-blue-bg)}
 .rg b{font-weight:600;font-size:12px;display:block;overflow:hidden;
-  text-overflow:ellipsis;white-space:nowrap}
-.rg em{display:block;font-style:normal;color:var(--dim);font-size:11px;margin-top:2px}
+  text-overflow:ellipsis;white-space:nowrap;color:var(--text-main)}
+.rg em{display:block;font-style:normal;color:var(--text-muted);font-size:11px;margin-top:2px}
 .stepper{display:flex;align-items:center;gap:0;width:fit-content;
-  border:1px solid var(--line);border-radius:4px;overflow:hidden;background:#0e1116}
-.stepper button{border:0;border-radius:0;background:transparent;padding:5px 11px}
-select,input[type=search],input[type=text]{font:inherit;background:#0e1116;
-  border:1px solid var(--line);color:var(--text);border-radius:4px;
-  padding:5px 8px;width:100%}
-select:focus,input[type=search]:focus,input[type=text]:focus{outline:none;border-color:var(--accent)}
+  border:1px solid var(--border-card);border-radius:var(--radius-xs);overflow:hidden;background:var(--bg-surface)}
+.stepper button{border:0;border-radius:0;background:transparent;padding:5px 11px;color:var(--text-main)}
+select,input[type=search],input[type=text]{font:inherit;background:var(--bg-input);
+  border:1px solid var(--border-card);color:var(--text-main);border-radius:var(--radius-xs);
+  padding:6px 10px;width:100%;transition:border-color .15s}
+select:focus,input[type=search]:focus,input[type=text]:focus{outline:none;border-color:var(--accent-blue)}
 .stepper input[type=text]{width:56px;text-align:center;font:inherit;background:transparent;
-  border:0;border-left:1px solid var(--line);border-right:1px solid var(--line);
-  color:var(--text);padding:5px 0;font-variant-numeric:tabular-nums}
+  border:0;border-left:1px solid var(--border-card);border-right:1px solid var(--border-card);
+  color:var(--text-main);padding:5px 0;font-variant-numeric:tabular-nums}
 .stepper input:focus{outline:none}
-.hint{color:var(--dim);font-size:11px;margin-top:6px}
+.hint{color:var(--text-muted);font-size:11px;margin-top:6px}
 .setrow{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
 .setrow input,.setrow select{width:100%}
 .updsec{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}
@@ -340,90 +835,231 @@ textarea:focus{outline:none;border-color:var(--accent)}
 .route-note{font-size:11px;color:var(--dim);margin-top:12px;line-height:1.6;padding:8px 12px;background:#0d1015;border-radius:4px;border-left:3px solid var(--accent)}
 .route-note code{color:var(--accent)}
 
-@media(max-width:680px){
-  header{padding:8px 12px;gap:8px;flex-wrap:wrap}
-  .bar{flex-wrap:wrap;gap:8px}
-  .ncard{grid-template-columns:auto 1fr;grid-template-areas:"flag info" "acts acts";gap:8px 10px}
-  .ncard-host{word-break:break-all}
-  .ncard-flag{grid-area:flag}
-  .ncard-info{grid-area:info}
-  .ncard-acts{grid-area:acts;width:100%;justify-content:stretch;margin-top:4px}
-  .ncard-acts button,.ncard-acts .tag-running{flex:1;text-align:center;justify-content:center}
-  .nex-controls{padding:8px 10px}
-  .nex-search-row{flex-direction:column;align-items:stretch}
-  .nex-search-box{min-width:100%}
-  .nex-sort-group{justify-content:space-between;width:100%}
-  .nex-sort-btn{flex:1;text-align:center}
-  .cred-fields-grid{grid-template-columns:1fr}
-  .cred-preview-row{flex-direction:column;align-items:stretch}
-  .cred-preview-row button{width:100%}
-  .credrow{flex-direction:column;align-items:stretch}
-  .credrow .ef{width:100%}
-  .credrow .ef input{width:100%!important}
-  .credrow button{width:100%}
-  .sub-input-row{flex-direction:column;align-items:stretch}
-  .sub-input-row button{width:100%}
-  .ex-card-acts{flex-direction:column;align-items:stretch}
-  .btn-copy-one{width:100%;text-align:center;justify-content:center}
-  .ex-sublink-row{flex-wrap:wrap}
+/* ==========================================================================
+   7. 响应式断点系统 (Tablet 1024px, Mobile 768px & Small 480px)
+   ========================================================================== */
+@media (max-width: 1024px) {
+  main { padding: 16px 20px 60px; }
+  .metrics-grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .host-pill { display: none; }
+  .exit-card { flex-direction: column; align-items: stretch; gap: 14px; }
+  .exit-bindings { border-left: none; border-top: 1px dashed var(--border-card); padding-left: 0; padding-top: 10px; }
+  .exit-actions { justify-content: flex-start; }
+}
+
+@media (max-width: 768px) {
+  body { overflow-x: hidden; }
+  main { padding: 12px 14px 60px; }
+  
+  header { padding: 10px 14px; }
+  .header-inner { flex-wrap: wrap; gap: 10px; }
+  .brand { flex-wrap: wrap; }
+  .header-actions { width: 100%; justify-content: space-between; gap: 6px; flex-wrap: wrap; }
+  .header-actions button { flex: 1; justify-content: center; min-height: 38px; padding: 6px 8px; font-size: 12px; }
+  
+  .metrics-grid { grid-template-columns: 1fr; gap: 10px; }
+  .metric-card { padding: 14px 16px; }
+  
+  .pipeline-container { flex-direction: column; align-items: stretch; gap: 12px; padding: 14px; }
+  .pipeline-flow { transform: rotate(90deg); margin: 10px auto; width: 32px; height: 32px; }
+  .pipeline-stage { width: 100%; min-width: 0; }
+  .pipeline-toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
+  .pipeline-toolbar .obind { flex-direction: column; align-items: stretch; width: 100%; gap: 6px; }
+  .pipeline-toolbar .select { width: 100%; min-height: 38px; }
+  .pipeline-actions { width: 100%; justify-content: stretch; gap: 8px; }
+  .pipeline-actions button { flex: 1; text-align: center; justify-content: center; min-height: 38px; }
+  
+  .toolbar { flex-wrap: wrap; gap: 10px; }
+  .toolbar-left { width: 100%; justify-content: space-between; }
+  .toolbar-right { width: 100%; display: flex; }
+  .toolbar-right button { flex: 1; justify-content: center; min-height: 38px; }
+  
+  .exit-card { flex-direction: column; align-items: stretch; gap: 12px; padding: 14px; }
+  .exit-main { min-width: 0; }
+  .exit-bindings { border-left: none; border-top: 1px dashed var(--border-card); padding-left: 0; padding-top: 10px; }
+  .exit-actions { justify-content: flex-start; flex-wrap: wrap; border-top: 1px dashed var(--border-card); padding-top: 10px; width: 100%; gap: 8px; }
+  .exit-actions button, .exit-actions .socks-badge { min-height: 38px; }
+  
+  .modal { padding: 10px; }
+  .sheet { width: 96% !important; max-width: 96% !important; margin: 12px auto; padding: 16px 14px !important; }
+  
+  .ncard { grid-template-columns: auto 1fr; grid-template-areas: "flag info" "acts acts"; gap: 8px 10px; }
+  .ncard-host { word-break: break-all; }
+  .ncard-flag { grid-area: flag; }
+  .ncard-info { grid-area: info; }
+  .ncard-acts { grid-area: acts; width: 100%; justify-content: stretch; margin-top: 4px; }
+  .ncard-acts button, .ncard-acts .tag-running { flex: 1; text-align: center; justify-content: center; min-height: 36px; }
+  
+  .nex-controls { padding: 8px 10px; }
+  .nex-search-row { flex-direction: column; align-items: stretch; gap: 8px; }
+  .nex-search-box { min-width: 100%; }
+  .nex-sort-group { justify-content: space-between; width: 100%; }
+  .nex-sort-btn { flex: 1; text-align: center; min-height: 34px; }
+  
+  .cred-fields-grid { grid-template-columns: 1fr; }
+  .cred-preview-row { flex-direction: column; align-items: stretch; }
+  .cred-preview-row button { width: 100%; min-height: 38px; }
+  .credrow { flex-direction: column; align-items: stretch; }
+  .credrow .ef { width: 100%; }
+  .credrow .ef input { width: 100% !important; min-height: 38px; }
+  .credrow button { width: 100%; min-height: 38px; }
+  
+  .sub-input-row { flex-direction: column; align-items: stretch; }
+  .sub-input-row button { width: 100%; min-height: 38px; }
+  
+  .ex-card-acts { flex-direction: column; align-items: stretch; }
+  .btn-copy-one { width: 100%; text-align: center; justify-content: center; min-height: 36px; }
+  .ex-sublink-row { flex-wrap: wrap; }
+}
+
+@media (max-width: 480px) {
+  .logo-title { font-size: 14px; }
+  .header-actions button { padding: 6px 8px; }
 }
 </style>
 </head>
 <body>
 <header>
-  <div class="brand">
-    <h1>fanout</h1>
-    <span class="badge-pro">PRO</span>
+  <div class="header-inner">
+    <div class="brand">
+      <div class="logo-mark">
+        <svg class="icon" viewBox="0 0 24 24">
+          <circle cx="6" cy="12" r="3"/>
+          <circle cx="18" cy="6" r="3"/>
+          <circle cx="18" cy="18" r="3"/>
+          <path d="M9 12h3a3 3 0 0 0 3-3V6m-3 6a3 3 0 0 1 3 3v3"/>
+        </svg>
+      </div>
+      <div class="logo-title">
+        fanout
+        <span class="pro-badge">PRO</span>
+      </div>
+      <div class="host-pill" id="headerHostPill">
+        <span class="pulse-dot"></span>
+        <span id="panel">正在连接后端...</span>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <button type="button" class="theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="切换浅色/深色模式">
+        <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+        <span id="themeToggleText">浅色模式</span>
+      </button>
+
+      <button type="button" class="btn btn-crystal" id="openExplorerBtn" title="全节点大厅（质量/速度降序、自由挑选住宅节点）">
+        <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+        <span>节点大厅</span>
+        <span class="mono" id="navNodeCount" style="font-size:11px;font-weight:700"></span>
+      </button>
+
+      <button type="button" class="btn btn-ghost" id="exportAllNavBtn" onclick="openModal('export')" title="导出聚合订阅与节点链接">
+        <svg class="icon-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+        <span>导出订阅</span>
+      </button>
+
+      <button type="button" class="btn btn-ghost" id="settingsBtn" title="控制台系统设置">
+        <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>设置</span>
+      </button>
+
+      <button type="button" class="icon" id="logoutBtn" title="退出登录">
+        <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
   </div>
-  <span class="panel-badge" id="panel"></span>
-  <span class="spacer"></span>
-  <button class="primary" id="openExplorerBtn" title="全节点大厅（质量/速度降序、自由挑选住宅节点）">
-    <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-    🌟 节点大厅
-  </button>
-  <button class="icon" id="settingsBtn" title="控制台设置">
-    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-  </button>
-  <button class="icon" id="logoutBtn" title="退出登录">
-    <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-  </button>
-  <nav class="links">
-    <a href="https://github.com/DongHua3/fanout-pro" target="_blank" rel="noopener">GitHub</a>
-  </nav>
 </header>
 
 <main>
+  <!-- 核心基础设施概览看板 (Hero Metrics Grid) -->
+  <div class="metrics-grid" id="heroMetrics">
+    <div class="metric-card">
+      <div class="metric-header">
+        <span class="metric-title">
+          <svg class="icon-sm" viewBox="0 0 24 24"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>
+          核心入站 (:443)
+        </span>
+        <span class="metric-badge badge-amber" id="heroCoreBadge">母机原生直连</span>
+      </div>
+      <div class="metric-val mono" id="heroCoreProto">—</div>
+      <div class="metric-desc" id="heroCoreDesc">
+        <span>—</span>
+      </div>
+    </div>
+
+    <div class="metric-card">
+      <div class="metric-header">
+        <span class="metric-title">
+          <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" x2="22" y1="12" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          活跃住宅出口
+        </span>
+        <span class="metric-badge badge-green" id="heroExitsBadge">连通中</span>
+      </div>
+      <div class="metric-val mono" id="heroExitsCount">0 <span style="font-size:14px;color:var(--text-muted);font-weight:400">个在线</span></div>
+      <div class="metric-desc" id="heroExitsDesc">
+        <span>暂无运行中出口</span>
+      </div>
+    </div>
+
+    <div class="metric-card">
+      <div class="metric-header">
+        <span class="metric-title">
+          <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a4.5 4.5 0 0 0 0-9H11"/><circle cx="18" cy="5" r="3"/><path d="M18 8v3"/></svg>
+          流量分流拓扑
+        </span>
+        <span class="metric-badge badge-blue" id="heroSplitBadge">100% 直连</span>
+      </div>
+      <div class="metric-val mono" id="heroSplitVal">0 挂载 · 0 直连</div>
+      <div class="metric-desc" id="heroSplitDesc">
+        <span>宿主机公网出网</span>
+      </div>
+    </div>
+
+    <div class="metric-card">
+      <div class="metric-header">
+        <span class="metric-title">
+          <svg class="icon-sm" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
+          域名与 HTTPS
+        </span>
+        <span class="metric-badge badge-blue" id="heroSSLBadge">HTTP 明文</span>
+      </div>
+      <div class="metric-val mono" id="heroSSLHost" style="font-size:16px;font-weight:600">未绑定域名</div>
+      <div class="metric-desc" id="heroSSLDesc">
+        <span>IP 直连访问</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 核心入站与流量拓扑管线容器 -->
+  <div id="pipelineContainer"></div>
+
   <div class="jobs" id="jobs"></div>
 
-  <div class="bar">
-    <h2>出口</h2>
-    <span class="count" id="ecount"></span>
-    <span class="spacer"></span>
-    <button id="openExplorerBtn2" title="全节点大厅（质量/速度降序）">
-      <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-      节点大厅
-    </button>
-    <button id="exportAll" title="导出全部节点链接">
-      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
-      导出链接
-    </button>
-    <button id="stopall" title="停止所有出口">
-      <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
-      全部停止
-    </button>
-    <button id="newnode" title="新建一个节点（协议与端口）">
-      <svg viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h10"/></svg>
-      新建节点
-    </button>
-    <button class="primary" id="newexit">
-      <svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-      新建出口
-    </button>
+  <div class="toolbar bar">
+    <div class="toolbar-left">
+      <h2 style="font-size:15px;font-weight:700;color:var(--text-main);margin:0">出口隧道</h2>
+      <span class="pill-count" id="ecount">0 个活跃出口</span>
+    </div>
+    <div class="toolbar-right">
+      <button type="button" class="btn btn-primary" id="newexit" title="新建出口隧道">
+        <svg class="icon-xs" viewBox="0 0 24 24"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
+        <span>新建出口</span>
+      </button>
+      <button type="button" class="btn btn-ghost" id="exportAll" title="导出全部节点链接">
+        <svg class="icon-xs" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+        <span>导出与订阅</span>
+      </button>
+      <button type="button" class="btn btn-ghost" id="newnode" title="新建一个节点（协议与端口）">
+        <svg class="icon-xs" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        <span>新建节点</span>
+      </button>
+      <button type="button" class="btn btn-ghost" id="stopall" style="color:var(--status-danger)" title="停止所有出口">
+        <svg class="icon-xs" viewBox="0 0 24 24"><rect width="14" height="14" x="5" y="5" rx="2"/></svg>
+        <span>全部停止</span>
+      </button>
+    </div>
   </div>
 
   <div id="list"></div>
-
-  <div id="orphans"></div>
 </main>
 
 <div class="modal" id="wizard">
@@ -615,7 +1251,7 @@ textarea:focus{outline:none;border-color:var(--accent)}
         </button>
       </div>
       <div class="route-note">
-        💡 <b>网络转发路径</b>：客户端连接 <code>母机公网IP:端口</code> ➔ 经由 OpenVPN 隧道隔离网络 ➔ 由 <code>VPN Gate 出口节点</code> 发往目标网络。<br>
+        <b>网络转发路径</b>：客户端连接 <code>母机公网IP:端口</code> ➔ 经由 OpenVPN 隧道隔离网络 ➔ 由 <code>VPN Gate 出口节点</code> 发往目标网络。<br>
         修改凭据后立即生效，已连上的活动会话不中断；新发起连接需使用新凭据。
       </div>
     </div>
@@ -646,7 +1282,7 @@ textarea:focus{outline:none;border-color:var(--accent)}
     <div class="body">
       <div class="sub-card">
         <div class="sub-card-head">
-          <span style="font-size:15px">📡</span>
+          <svg class="icon-sm" viewBox="0 0 24 24"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/><path d="M19.1 4.9C23 8.8 23 15.2 19.1 19.1"/></svg>
           <strong>客户端一键聚合订阅源 (/sub)</strong>
           <span class="sub-badge">免手动导入 · 自动同步</span>
         </div>
@@ -661,14 +1297,14 @@ textarea:focus{outline:none;border-color:var(--accent)}
 
       <div class="ex-nav-bar">
         <div class="ex-view-tabs">
-          <button type="button" class="ex-tab-btn active" id="exTabCards">📋 节点卡片明细</button>
-          <button type="button" class="ex-tab-btn" id="exTabText">📄 纯文本批量导入</button>
+          <button type="button" class="ex-tab-btn active" id="exTabCards">节点卡片明细</button>
+          <button type="button" class="ex-tab-btn" id="exTabText">纯文本批量导入</button>
         </div>
         <span class="spacer"></span>
         <div class="ex-filters" id="exFilters">
           <button type="button" class="ex-filter-btn active" data-exfilter="all">全部</button>
-          <button type="button" class="ex-filter-btn" data-exfilter="direct">🌐 仅直连</button>
-          <button type="button" class="ex-filter-btn" data-exfilter="exit">🔀 仅出口</button>
+          <button type="button" class="ex-filter-btn" data-exfilter="direct">仅直连</button>
+          <button type="button" class="ex-filter-btn" data-exfilter="exit">仅出口</button>
         </div>
       </div>
 
@@ -684,7 +1320,7 @@ textarea:focus{outline:none;border-color:var(--accent)}
 <div class="modal" id="settings">
   <div class="sheet">
     <div class="head">
-      <h2>⚙️ 系统与面板设置</h2>
+      <h2><svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> 系统与面板设置</h2>
       <span class="spacer"></span>
       <button class="icon" data-close="settings" title="关闭">
         <svg viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
@@ -693,7 +1329,7 @@ textarea:focus{outline:none;border-color:var(--accent)}
     <div class="body" style="display:flex;flex-direction:column;gap:12px">
       <!-- 卡片 1: 访问安全与路径 -->
       <div class="set-card">
-        <div class="set-card-title">🔑 访问安全与路径</div>
+        <div class="set-card-title">访问安全与路径</div>
         <label class="f"><span>访问口令</span>
           <input id="setPw" type="password" spellcheck="false" autocomplete="new-password" placeholder="留空则保持原口令不变"></label>
         <div class="hint">修改后仅对新登录会话生效，当前浏览器不会被强制退出。</div>
@@ -705,16 +1341,16 @@ textarea:focus{outline:none;border-color:var(--accent)}
 
       <!-- 卡片 2: 域名与 SSL (HTTPS) -->
       <div class="set-card">
-        <div class="set-card-title">🌐 域名与 HTTPS (SSL) 加密</div>
+        <div class="set-card-title">域名与 HTTPS (SSL) 加密</div>
         <label class="f"><span>面板绑定域名</span>
           <input id="setDomain" type="text" spellcheck="false" placeholder="例如 panel.example.com（可选，留空使用 IP）"></label>
         <div class="hint">绑定域名后，节点分享链接和 /sub 聚合订阅源将优先使用此域名。</div>
 
         <label class="f" style="margin-top:12px"><span>SSL 模式</span>
           <select id="setSSLMode">
-            <option value="none">🌐 外部反代 / HTTP（纯域名直连或外部 CF CDN / 反代）</option>
-            <option value="custom">🔒 原生自定义 SSL 证书（面板原生 HTTPS 监听）</option>
-            <option value="caddy">⚡ 一键 Caddy 自动化反代（母机 443 免端口纯净访问）</option>
+            <option value="none">外部反代 / HTTP（纯域名直连或外部 CDN 反代）</option>
+            <option value="custom">原生自定义 SSL 证书（面板原生 HTTPS 监听）</option>
+            <option value="caddy">一键 Caddy 自动化反代（母机 443 免端口纯净访问）</option>
           </select></label>
 
         <div id="setSSLCertWrap" style="margin-top:12px;display:none;background:#090c10;border:1px solid var(--line);border-radius:6px;padding:12px">
@@ -723,7 +1359,7 @@ textarea:focus{outline:none;border-color:var(--accent)}
           <label class="f" style="margin-top:8px"><span>私钥文件绝对路径 (Key)</span>
             <input id="setKeyFile" type="text" spellcheck="false" placeholder="/etc/ssl/key.pem 或 acme.sh 私钥路径"></label>
           <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
-            <button type="button" class="btn-subtle" id="setCertCheck">🔍 检测证书有效性</button>
+            <button type="button" class="btn btn-ghost" id="setCertCheck" style="font-size:12px;padding:4px 10px"><svg class="icon-xs" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg> <span>检测证书有效性</span></button>
             <span id="setCertStatus" style="font-size:11px;color:var(--dim)"></span>
           </div>
         </div>
@@ -732,7 +1368,7 @@ textarea:focus{outline:none;border-color:var(--accent)}
 
       <!-- 卡片 3: 监听与后端模式 -->
       <div class="set-card">
-        <div class="set-card-title">⚙️ 网络监听与后端模式</div>
+        <div class="set-card-title">网络监听与后端模式</div>
         <label class="f"><span>节点后端</span>
           <select id="setBackend"></select></label>
         <div class="hint" id="setBackendHint">节点从哪来。装了 3x-ui 或 xray-cf-lite 就能直接接管，都没有就用自建。</div>
@@ -751,7 +1387,7 @@ textarea:focus{outline:none;border-color:var(--accent)}
 
       <!-- 卡片 4: 版本与更新 -->
       <div class="set-card" style="margin-bottom:0">
-        <div class="set-card-title">🚀 系统版本与维护</div>
+        <div class="set-card-title">系统版本与维护</div>
         <div class="updrow">
           <div class="updver">当前版本 <b id="updCur">-</b><span id="updLatest"></span></div>
           <span class="spacer"></span>
@@ -762,7 +1398,7 @@ textarea:focus{outline:none;border-color:var(--accent)}
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--line)">
           <span style="font-size:11px;color:var(--dim)">当前登录会话</span>
           <button type="button" class="btn-subtle" id="settingsLogoutBtn" style="color:var(--bad)" title="退出当前登录会话">
-            🚪 退出登录
+            退出登录
           </button>
         </div>
       </div>
@@ -779,7 +1415,7 @@ textarea:focus{outline:none;border-color:var(--accent)}
   <div class="sheet sheet-wide">
     <div class="head">
       <div style="display:flex;align-items:center;gap:10px">
-        <h2>🌟 全节点大厅 (Node Explorer)</h2>
+        <h2><svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg> 全节点大厅 (Node Explorer)</h2>
         <span class="count" id="nex-count">正在加载节点...</span>
       </div>
       <span class="spacer"></span>
@@ -796,16 +1432,16 @@ textarea:focus{outline:none;border-color:var(--accent)}
         </div>
         <div class="nex-sort-group">
           <span class="sort-label">排序方式:</span>
-          <button type="button" class="nex-sort-btn active" data-sort="quality" title="家宽优先，纯净度与信誉得分由高到低">🌟 质量优先</button>
-          <button type="button" class="nex-sort-btn" data-sort="speed" title="带宽吞吐量由高到低">⚡ 速度降序</button>
-          <button type="button" class="nex-sort-btn" data-sort="ping" title="响应延迟由低到高">📶 延迟升序</button>
+          <button type="button" class="nex-sort-btn active" data-sort="quality" title="家宽优先，纯净度与信誉得分由高到低">质量优先</button>
+          <button type="button" class="nex-sort-btn" data-sort="speed" title="带宽吞吐量由高到低">速度降序</button>
+          <button type="button" class="nex-sort-btn" data-sort="ping" title="响应延迟由低到高">延迟升序</button>
         </div>
       </div>
       <div class="nex-filter-row">
         <div class="nex-types" id="nex-types">
           <button type="button" class="nex-filter-chip active" data-type="">全部类型</button>
-          <button type="button" class="nex-filter-chip" data-type="residential">🏠 优质家庭宽带 (95+分)</button>
-          <button type="button" class="nex-filter-chip" data-type="datacenter">🏢 机房/IDC</button>
+          <button type="button" class="nex-filter-chip" data-type="residential">优质家庭宽带 (95+分)</button>
+          <button type="button" class="nex-filter-chip" data-type="datacenter">机房/IDC</button>
         </div>
         <span class="spacer"></span>
         <div class="nex-regions" id="nex-regions" style="display:flex;gap:4px;flex-wrap:wrap"></div>
@@ -832,7 +1468,7 @@ textarea:focus{outline:none;border-color:var(--accent)}
       <div class="bmode-item active" id="bmode-clone-card">
         <div class="bmode-head">
           <input type="radio" name="bmode" id="bmode-radio-clone" checked>
-          <strong>⚡ 复制原节点并绑定 (推荐 · 原节点继续直连)</strong>
+          <strong>复制原节点并绑定 (推荐 · 原节点继续直连)</strong>
         </div>
         <p class="hint" style="margin:6px 0 10px">基于现有节点复制一套全新入站（相同密码/UUID/传输协议），<b>原节点继续留作母机直连</b>，两者互不影响！</p>
         <div id="bmode-clone-fields">
@@ -843,25 +1479,25 @@ textarea:focus{outline:none;border-color:var(--accent)}
             <input type="text" id="bem-port" placeholder="输入或点击下方推荐端口" inputmode="numeric">
             <div id="bem-port-status" class="port-status"></div>
             <div class="port-recom-wrap" style="margin-top:6px">
-              <div class="port-recom-title">💡 推荐空闲端口（点击一键填入）：</div>
+              <div class="port-recom-title">推荐空闲端口（点击一键填入）：</div>
               <div class="port-chips" id="bem-port-chips"></div>
             </div>
           </label>
-          <button class="primary" id="bem-btn-clone" style="width:100%;margin-top:8px">⚡ 立即复制并绑定至该出口</button>
+          <button class="primary" id="bem-btn-clone" style="width:100%;margin-top:8px">立即复制并绑定至该出口</button>
         </div>
       </div>
 
       <div class="bmode-item" id="bmode-move-card" style="margin-top:12px">
         <div class="bmode-head">
           <input type="radio" name="bmode" id="bmode-radio-move">
-          <strong>🔀 直接转移现有直连节点</strong>
+          <strong>直接转移现有直连节点</strong>
         </div>
-        <p class="hint" style="margin:6px 0 10px">将现有的某个直连节点直接改绑至此出口（⚠️ 注意：该节点将不再直连，流量转向该出口）。</p>
+        <p class="hint" style="margin:6px 0 10px">将现有的某个直连节点直接改绑至此出口（注意：该节点将不再直连，流量转向该出口）。</p>
         <div id="bmode-move-fields" style="display:none">
           <label class="f"><span>选择要转移改绑的节点</span>
             <select id="bem-direct-node"></select>
           </label>
-          <button class="primary" id="bem-btn-move" style="width:100%;margin-top:8px">🔀 转移改绑至该出口</button>
+          <button class="primary" id="bem-btn-move" style="width:100%;margin-top:8px">转移改绑至该出口</button>
         </div>
       </div>
     </div>
@@ -873,18 +1509,62 @@ textarea:focus{outline:none;border-color:var(--accent)}
 <script>
 const $ = s => document.querySelector(s);
 const ICON = {
-  copy:'<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
-  stop:'<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>',
-  redo:'<svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>',
-  ok:'<svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>',
-  bad:'<svg viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
-  run:'<svg viewBox="0 0 24 24" class="spin"><path d="M21 12a9 9 0 1 1-6.2-8.5"/></svg>',
-  wait:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg>',
-  plus:'<svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg>',
-  trash:'<svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
-  x:'<svg viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
-  lock:'<svg viewBox="0 0 24 24" class="lock"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
+  sun: '<svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>',
+  moon: '<svg class="icon-sm" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>',
+  node: '<svg class="icon-sm" viewBox="0 0 24 24"><rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>',
+  settings: '<svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  export: '<svg class="icon-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>',
+  cred: '<svg class="icon-sm" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+  lock: '<svg class="icon-xs lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+  swap: '<svg class="icon-xs" viewBox="0 0 24 24"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>',
+  stop: '<svg class="icon-xs" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>',
+  redo: '<svg class="icon-xs" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>',
+  copy: '<svg class="icon-xs" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+  plus: '<svg class="icon-xs" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg>',
+  check: '<svg class="icon-xs" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>',
+  x: '<svg class="icon-xs" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
+  direct: '<svg class="icon-sm" viewBox="0 0 24 24"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>',
+  reality: '<svg class="icon-sm" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+  flow: '<svg class="icon-xs" viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>',
+  trash: '<svg class="icon-xs" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+  ok: '<svg class="icon-xs" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>',
+  bad: '<svg class="icon-xs" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
+  run: '<svg class="icon-xs spin" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.2-8.5"/></svg>',
+  wait: '<svg class="icon-xs" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg>'
 };
+
+function toggleTheme(){
+  const html = document.documentElement;
+  const isDark = html.classList.contains('dark') || !html.classList.contains('light');
+  const target = isDark ? 'light' : 'dark';
+  html.classList.remove('dark', 'light');
+  html.classList.add(target);
+  try{ localStorage.setItem('fanout_theme', target); }catch(e){}
+  updateThemeButton(target);
+}
+
+function updateThemeButton(theme){
+  const btn = $('#themeToggleBtn');
+  if(!btn) return;
+  const isLight = theme === 'light';
+  btn.innerHTML = (isLight ? ICON.moon : ICON.sun) + '<span id="themeToggleText">' + (isLight ? '深色模式' : '浅色模式') + '</span>';
+  btn.title = isLight ? '切换为深色高对比模式' : '切换为纯净浅色模式';
+}
+
+function initTheme(){
+  let t = 'dark';
+  try{
+    t = localStorage.getItem('fanout_theme');
+    if(!t && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches){
+      t = 'light';
+    }
+  }catch(e){}
+  if(!t) t = 'dark';
+  document.documentElement.classList.remove('dark', 'light');
+  document.documentElement.classList.add(t);
+  updateThemeButton(t);
+}
+initTheme();
 
 // 界面挂在随机前缀下，请求一律走相对路径
 async function api(path, opts){
@@ -1055,142 +1735,320 @@ function backendName(){ return BACKEND_NAME[view.backend] || '3x-ui'; }
 
 const STATUS = {up:'已连通', starting:'连接中', failed:'失败', stopped:'已停止'};
 
-function renderExits(){
-  const list = $('#list');
-  const n = view.exits.length;
-  const totalInbounds = (view.direct || []).length + view.exits.reduce((acc, e) => acc + (e.inbounds || []).length, 0);
-  $('#exportAll').disabled = !totalInbounds;
-  $('#stopall').disabled = !n;
-
-  if(!n){
-    list.innerHTML = '<div class="empty">还没有出口'
-      + '<div><button class="primary" id="newexit2">'
-      + '<svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg>'
-      + '新建出口</button></div></div>';
-    return;
-  }
-
-  list.innerHTML = view.exits.map(e => {
-    const label = e.exit_ip || (e.status === 'starting' ? '连接中…' : '—');
-    const chips = (e.inbounds || []).length
-      ? e.inbounds.map(i =>
-          '<span class="chip-group">'
-          + '<button class="chip" data-detail="' + i.id + '" title="'
-          +   esc((i.remark || i.protocol) + ' · ' + i.protocol + ' :' + i.port) + '">'
-          +   esc(i.protocol) + ' :' + i.port + '</button>'
-          + '<button type="button" class="chip-unbind" data-unbind-tag="' + esc(i.tag)
-          +   '" data-unbind-port="' + i.port + '" title="解除绑定，恢复母机原生直连">✖</button>'
-          + '</span>').join('')
-      : '<button type="button" class="chip none-btn" data-bind-slot="' + e.slot
-          + '" data-bind-host="' + esc(e.host)
-          + '" data-bind-ip="' + esc(label)
-          + '" data-bind-region="' + esc(e.region || '')
-          + '" title="点击为该出口绑定节点（支持克隆复制原节点保留直连，或转移绑定）">➕ 无节点 (点击绑定)</button>';
-    const err = e.status === 'failed' && e.err
-      ? '<div class="errline" title="' + esc(e.err) + '">' + esc(e.err) + '</div>' : '';
-    const place = e.country && e.country.toUpperCase() !== (e.region || '').toUpperCase()
-      ? esc(e.region) + ' ' + esc(e.country) : esc(e.region || '—');
-    return '<div class="exit">'
-      + '<div class="row">'
-      +   '<span class="dot ' + e.status + '" title="' + (STATUS[e.status] || e.status) + '"></span>'
-      +   '<span class="ip">' + esc(label) + '</span>'
-      +   '<span class="meta">' + place + ' · ' + esc(e.host) + '</span>'
-      +   '<span class="chips">' + chips + '</span>'
-      +   '<span class="socks"><button data-cred="' + e.slot + '" title="SOCKS5 访问凭据">'
-      +     ICON.lock + ':' + e.port + '</button></span>'
-      +   '<span class="acts">'
-      +     '<button class="icon" data-swap="' + e.slot + '" title="换一个节点">' + ICON.redo + '</button>'
-      +     '<button class="icon" data-stop="' + e.slot + '" title="停止这个出口">' + ICON.stop + '</button>'
-      +   '</span>'
-      + '</div>' + err + '</div>';
-  }).join('');
+function formatSince(sinceStr){
+  if(!sinceStr) return '';
+  try{
+    const t = new Date(sinceStr).getTime();
+    if(isNaN(t) || t <= 0) return '';
+    const ms = Date.now() - t;
+    if(ms < 0) return '';
+    const mins = Math.floor(ms / 60000);
+    if(mins < 1) return '刚刚连线';
+    if(mins < 60) return '连线 ' + mins + ' 分钟';
+    const hrs = (mins / 60).toFixed(1);
+    return '运行 ' + hrs + ' 小时';
+  }catch(e){ return ''; }
 }
 
-function renderOrphans(){
-  const box = $('#orphans');
-  const directList = view.direct || [];
-  const exitsList = view.exits || [];
+function renderExits(){
+  const list = $('#list');
+  const n = (view.exits || []).length;
+  const totalInbounds = (view.direct || []).length + (view.exits || []).reduce((acc, e) => acc + (e.inbounds || []).length, 0);
+  if($('#exportAll')) $('#exportAll').disabled = !totalInbounds;
+  if($('#stopall')) $('#stopall').disabled = !n;
+  if($('#ecount')) $('#ecount').textContent = n + ' 个活跃出口';
 
-  // 查找核心 443 入站（优先查找 443，直连或已挂载至出口均可捕获）
-  let coreNode = directList.find(i => i.port === 443);
-  let coreOwner = null;
-  if(!coreNode){
-    for(const exit of exitsList){
-      const found = (exit.inbounds || []).find(i => i.port === 443);
-      if(found){
-        coreNode = found;
-        coreOwner = exit;
-        break;
-      }
-    }
-  }
-
-  const others = directList.filter(i => i !== coreNode);
-  if(!coreNode && !others.length){
-    box.innerHTML = '';
+  if(!n){
+    list.innerHTML = '<div class="empty" style="border:1px dashed var(--border-card);border-radius:var(--radius-lg);padding:48px 24px;text-align:center;background:var(--bg-card)">'
+      + '<div style="font-size:14px;color:var(--text-muted);margin-bottom:12px">暂无活跃的出口隧道</div>'
+      + '<button type="button" class="btn btn-primary" id="newexit2">'
+      + '<svg class="icon-sm" viewBox="0 0 24 24"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>'
+      + '<span>新建出口</span></button></div>';
     return;
   }
 
-  const hasUp = exitsList.some(e => e.status === 'up');
+  list.innerHTML = '<div class="exit-list">' + view.exits.map(e => {
+    const label = e.exit_ip || (e.status === 'starting' ? '连接中…' : (e.status === 'failed' ? '连接失败' : '—'));
+    const country = esc(e.country || e.region || 'KR');
+    const isUp = e.status === 'up';
 
-  let html = '<div class="direct-section">'
-    + '<div class="direct-header">'
-    +   '<div class="dh-title">'
-    +     '<span style="font-size:16px">🌐</span>'
-    +     '<h3>' + (coreOwner ? '核心入站与直连管控' : '原生直连节点（母机公网出网）') + '</h3>'
-    +     '<span class="count">' + directList.length + ' 个直连</span>'
-    +   '</div>'
-    +   '<span class="dh-ip">母机公网 IP: <b>' + esc(view.public_ip || '—') + '</b></span>'
-    +   '<span class="spacer"></span>'
-    +   '<button type="button" class="btn-subtle" id="openExplorerFromDirect">'
-    +     '🌟 挑选优质住宅IP挂载'
-    +   '</button>'
-    + '</div>';
+    // 质量画像徽章
+    let qualityBadge = '';
+    if(e.quality && e.quality.score){
+      const isRes = e.quality.type === 'residential';
+      qualityBadge = isRes
+        ? '<span class="quality-tag tag-residential"><span class="dot-indicator"></span> 住宅 ' + e.quality.score + '分</span>'
+        : '<span class="quality-tag tag-datacenter"><span class="dot-indicator"></span> 机房 ' + e.quality.score + '分</span>';
+    }
 
-  if(coreNode){
-    const coreStatus = coreOwner
-      ? '<span class="cic-status bound">🔀 已挂载出口: <b>' + esc(coreOwner.exit_ip || coreOwner.host) + '</b> (' + esc(coreOwner.region) + ')</span>'
-      : '<span class="cic-status direct">🌐 原生直连出网 (母机公网 IP: ' + esc(view.public_ip || '—') + ')</span>';
+    // 运营商与连线时间
+    const ispName = (e.quality && e.quality.isp) ? e.quality.isp : (e.isp || '');
+    const metaHost = esc(e.host || '');
+    const metaParts = [];
+    if(ispName) metaParts.push(esc(ispName));
+    if(metaHost) metaParts.push(metaHost);
+    const metaStr = metaParts.join(' • ') || esc(e.region || '—');
 
-    const coreActs = coreOwner
-      ? '<button class="chip" data-detail="' + coreNode.id + '" title="查看分享链接与详细设置">📋 详情/链接</button>'
-        + '<select class="obind" data-tag="' + esc(coreNode.tag) + '" data-port="' + coreNode.port + '">' + exitOptions(coreOwner.host) + '</select>'
-        + '<button type="button" class="btn-subtle" data-unbind-tag="' + esc(coreNode.tag) + '" data-unbind-port="' + coreNode.port + '" title="解除绑定，恢复母机原生直连" style="color:var(--bad)">✖ 解绑恢复直连</button>'
-      : '<button class="chip" data-detail="' + coreNode.id + '" title="查看分享链接与详细设置">📋 详情/链接</button>'
-        + (hasUp
-            ? '<select class="obind" data-tag="' + esc(coreNode.tag) + '" data-port="' + coreNode.port + '">' + exitOptions('') + '</select>'
-            : '<button class="primary btn-start-core-exit" data-port="' + coreNode.port + '">🚀 挑选住宅IP挂载</button>');
+    const sinceText = isUp ? formatSince(e.since) : '';
+    const timeHTML = sinceText
+      ? '<span class="exit-time"><span class="dot-indicator"></span> ' + esc(sinceText) + '</span>'
+      : (e.status !== 'up' ? '<span class="count" style="color:var(--status-warn)">' + (STATUS[e.status] || e.status) + '</span>' : '');
 
-    html += '<div class="core-inbound-card' + (coreOwner ? ' bound' : '') + '">'
-      + '<div class="cic-top">'
-      +   '<span class="cic-badge">👑 核心入站 :' + coreNode.port + '</span>'
-      +   '<span class="cic-title">' + esc(coreNode.remark || coreNode.protocol) + '</span>'
-      +   coreStatus
-      +   '<span class="spacer"></span>'
-      +   '<div class="cic-acts">' + coreActs + '</div>'
+    // 挂载入站胶囊
+    let bindingsHTML = '';
+    const inbounds = e.inbounds || [];
+    if(inbounds.length > 0){
+      bindingsHTML = inbounds.map(i => {
+        const isCore = i.port === 443;
+        const protoText = esc(i.protocol || 'port') + ' :' + i.port;
+        const pillClass = 'bound-pill' + (isCore ? ' core' : '');
+        return '<span class="' + pillClass + '" title="' + esc((i.remark || i.protocol) + ' · ' + i.protocol + ' :' + i.port) + '">'
+          + '<span class="mono">' + protoText + '</span>'
+          + '<span class="bound-unbind" data-unbind-tag="' + esc(i.tag) + '" data-unbind-port="' + i.port + '" title="解除挂载，恢复母机原生直连">✕</span>'
+          + '</span>';
+      }).join('');
+    } else {
+      bindingsHTML = '<span style="font-size:12px;color:var(--text-muted);font-style:italic">未挂载入站</span>';
+    }
+
+    const addBindBtn = '<button type="button" class="btn-add-bind" data-bind-slot="' + e.slot
+      + '" data-bind-host="' + esc(e.host)
+      + '" data-bind-ip="' + esc(label)
+      + '" data-bind-region="' + esc(e.region || '')
+      + '" title="为该出口挂载入站节点"><svg class="icon-xs" viewBox="0 0 24 24"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg><span>绑定入站</span></button>';
+
+    const errHTML = (e.status === 'failed' && e.err)
+      ? '<div class="errline" style="margin-top:6px;color:var(--status-danger);font-size:12px" title="' + esc(e.err) + '">' + esc(e.err) + '</div>'
+      : '';
+
+    return '<div class="exit-card">'
+      + '<div class="exit-main">'
+      +   '<span class="country-tag">' + country + '</span>'
+      +   '<div>'
+      +     '<div class="exit-ip">'
+      +       '<span class="mono">' + esc(label) + '</span>'
+      +       (e.exit_ip ? '<button type="button" class="copy-btn" data-copy="' + esc(e.exit_ip) + '" title="复制出口 IP"><svg class="icon-xs" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg><span>复制</span></button>' : '')
+      +       qualityBadge
+      +     '</div>'
+      +     '<div class="exit-meta">'
+      +       '<span>' + metaStr + '</span>'
+      +       timeHTML
+      +     '</div>'
+      +   '</div>'
+      + '</div>'
+      + '<div class="exit-bindings">'
+      +   '<span style="font-size:12px;color:var(--text-muted);font-weight:600">挂载入站:</span>'
+      +   bindingsHTML
+      +   addBindBtn
+      + '</div>'
+      + '<div class="exit-actions">'
+      +   '<div class="socks-badge mono" data-cred="' + e.slot + '" title="查看 SOCKS5 访问凭据">'
+      +     '<svg class="icon-xs" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
+      +     '<span>:' + e.port + '</span>'
+      +   '</div>'
+      +   '<button type="button" class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-swap="' + e.slot + '" title="同地区轮换节点">'
+      +     '<svg class="icon-xs" viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>'
+      +     '<span>换节点</span>'
+      +   '</button>'
+      +   '<button type="button" class="btn btn-ghost" style="padding:5px 10px;font-size:12px;color:var(--status-danger)" data-stop="' + e.slot + '" title="停止此出口隧道">'
+      +     '<svg class="icon-xs" viewBox="0 0 24 24"><rect width="14" height="14" x="5" y="5" rx="2"/></svg>'
+      +     '<span>停止</span>'
+      +   '</button>'
+      + '</div>'
+      + errHTML
+      + '</div>';
+  }).join('') + '</div>';
+}
+
+function renderPipeline(){
+  const container = $('#pipelineContainer');
+  if(!container) return;
+  const directList = view.direct || [];
+  const exitsList = view.exits || [];
+  const allInbounds = [];
+  directList.forEach(i => allInbounds.push({inbound: i, exit: null}));
+  exitsList.forEach(e => (e.inbounds || []).forEach(i => allInbounds.push({inbound: i, exit: e})));
+
+  if(allInbounds.length === 0){
+    container.innerHTML = '<div class="section-card"><div class="section-header"><div class="section-title">'
+      + '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M16 12H8"/><path d="m12 8 4 4-4 4"/></svg>'
+      + '核心入站与流量拓扑管线</div></div>'
+      + '<div class="empty">暂无入站节点。可在下方点击“新建节点”或在面板中配置 443 入站，即可开启流量拓扑调度。</div></div>';
+    return;
+  }
+
+  // 1. 查找核心 443 入站（优先查找 443，若无则取首个入站）
+  const coreItem = allInbounds.find(item => item.inbound.port === 443) || allInbounds[0];
+  const coreNode = coreItem.inbound;
+  const coreOwner = coreItem.exit;
+  const otherItems = allInbounds.filter(item => item !== coreItem);
+
+  const corePort = coreNode.port;
+  const coreRemark = coreNode.remark ? esc(coreNode.remark) : ('入站 :' + corePort);
+  const coreProto = (coreNode.protocol || 'PORT').toUpperCase();
+  const coreListen = coreNode.listen ? (esc(coreNode.listen) + ':' + corePort) : ('0.0.0.0:' + corePort);
+
+  // 阶段 3: 真实出网节点
+  let stage3HTML = '';
+  if(coreOwner){
+    const country = esc(coreOwner.country || coreOwner.region || 'KR');
+    const exitIP = esc(coreOwner.exit_ip || coreOwner.host || '—');
+    const isp = esc((coreOwner.quality && coreOwner.quality.isp) ? coreOwner.quality.isp : (coreOwner.isp || '优质住宅网络'));
+    const isRes = coreOwner.quality ? (coreOwner.quality.type === 'residential') : true;
+    const score = coreOwner.quality && coreOwner.quality.score ? coreOwner.quality.score : 95;
+    const qualityTag = isRes
+      ? '<span class="quality-tag tag-residential"><span class="dot-indicator"></span> 住宅宽带 ' + score + '分</span>'
+      : '<span class="quality-tag tag-datacenter"><span class="dot-indicator"></span> 机房节点 ' + score + '分</span>';
+
+    stage3HTML = '<div class="pipeline-stage exit-active" id="pipelineExitStage">'
+      + '<div class="pipeline-stage-label">'
+      +   '<span>真实出网节点</span>'
+      +   '<span class="metric-badge badge-green" style="font-size:10px">动态住宅代理</span>'
+      + '</div>'
+      + '<div class="pipeline-stage-main">'
+      +   '<span class="country-tag">' + country + '</span>'
+      +   '<span class="mono">' + exitIP + '</span>'
+      +   qualityTag
+      + '</div>'
+      + '<div class="pipeline-stage-sub">'
+      +   '运营商: <span style="color:var(--text-main);font-weight:600">' + isp + '</span> • 保护母机 IP 绝不外泄'
+      + '</div></div>';
+  } else {
+    const hostIP = esc(view.public_ip || '—');
+    stage3HTML = '<div class="pipeline-stage exit-direct" id="pipelineExitStage">'
+      + '<div class="pipeline-stage-label">'
+      +   '<span>真实出网节点</span>'
+      +   '<span class="metric-badge badge-amber" style="font-size:10px">母机公网直连</span>'
+      + '</div>'
+      + '<div class="pipeline-stage-main">'
+      +   '<span class="country-tag">HOST</span>'
+      +   '<span class="mono">' + hostIP + '</span>'
+      +   '<span class="quality-tag tag-datacenter"><span class="dot-indicator"></span> 母机直连</span>'
+      + '</div>'
+      + '<div class="pipeline-stage-sub">'
+      +   '母机公网直连 • 未绑定任何出口代理'
       + '</div></div>';
   }
 
-  if(others.length){
-    html += others.map(i =>
-        '<div class="orow">'
-        + '<button class="chip" data-detail="' + i.id + '" title="'
-        +   esc((i.remark || i.protocol) + ' · ' + i.protocol + ' :' + i.port) + '">'
-        +   esc(i.remark || i.protocol) + ' :' + i.port + '</button>'
-        + '<span class="count">🌐 直连</span>'
-        + '<span class="spacer"></span>'
-        + (hasUp
-            ? '<select class="obind" data-tag="' + esc(i.tag) + '" data-port="' + i.port + '">' + exitOptions('') + '</select>'
-            : '<span class="dim">先开一个出口</span>')
-        + (isXCL() ? ''
-            : '<button class="icon danger" data-delone="' + i.id + '" data-name="'
-              + esc((i.remark || i.protocol) + ' :' + i.port) + '" title="删除这个入站">'
-              + ICON.trash + '</button>')
-        + '</div>').join('');
+  // 拓扑调度控制条选项
+  let optionsHTML = '<option value=""' + (!coreOwner ? ' selected' : '') + '>原生直连 (母机公网出网: ' + esc(view.public_ip || '—') + ')</option>';
+  exitsList.forEach(e => {
+    const eCountry = esc(e.country || e.region || '');
+    const eIP = esc(e.exit_ip || e.host);
+    const eISP = esc((e.quality && e.quality.isp) ? e.quality.isp : (e.isp || ''));
+    const eScore = e.quality && e.quality.score ? (' · ' + e.quality.score + '分') : '';
+    const sel = (coreOwner && coreOwner.host === e.host) ? ' selected' : '';
+    optionsHTML += '<option value="' + esc(e.host) + '"' + sel + '>[' + eCountry + '] ' + eIP + (eISP ? ' · ' + eISP + eScore : '') + '</option>';
+  });
+
+  const detailBtn = '<button type="button" class="btn btn-ghost" data-detail="' + coreNode.id + '" title="查看分享链接与节点参数">'
+    + '<svg class="icon-xs" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>'
+    + '<span>复制与详情</span></button>';
+
+  const explorerBtn = '<button type="button" class="btn btn-crystal" id="openExplorerFromPipeline" title="从全节点大厅挑选并挂载">'
+    + '<svg class="icon-xs" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>'
+    + '<span>从大厅挑选挂载</span></button>';
+
+  const unbindBtn = coreOwner
+    ? '<button type="button" class="btn btn-ghost" style="color:var(--status-danger)" data-unbind-tag="' + esc(coreNode.tag) + '" data-unbind-port="' + coreNode.port + '" title="解除绑定，恢复母机原生直连">'
+      + '<svg class="icon-xs" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+      + '<span>解绑恢复直连</span></button>'
+    : '';
+
+  // 其他直连入站折叠区
+  let subinboundsHTML = '';
+  if(otherItems.length > 0){
+    const subRows = otherItems.map(item => {
+      const ib = item.inbound;
+      const owner = item.exit;
+      const ibPort = ib.port;
+      const ibProto = (ib.protocol || 'PORT').toLowerCase();
+      const ibRemark = ib.remark ? esc(ib.remark) : '自建入站';
+      const statusBadge = owner
+        ? '<span class="metric-badge badge-purple" style="font-size:10px">挂载至: ' + esc(owner.exit_ip || owner.host) + '</span>'
+        : '<span class="metric-badge badge-amber" style="font-size:10px">直连出网: ' + esc(view.public_ip || '—') + '</span>';
+
+      let rowOpts = '<option value=""' + (!owner ? ' selected' : '') + '>保持原生直连</option>';
+      exitsList.forEach(e => {
+        const sel = (owner && owner.host === e.host) ? ' selected' : '';
+        rowOpts += '<option value="' + esc(e.host) + '"' + sel + '>挂载至 ' + esc(e.exit_ip || e.host) + ' (' + esc(e.region || '') + ')</option>';
+      });
+
+      const delBtn = isXCL() ? ''
+        : '<button type="button" class="btn btn-ghost" style="padding:3px 6px;color:var(--status-danger)" data-delone="' + ib.id + '" data-name="'
+          + esc((ib.remark || ib.protocol) + ' :' + ib.port) + '" title="删除这个入站">'
+          + ICON.trash + '</button>';
+
+      return '<div class="subinbound-row">'
+        + '<div style="display:flex;align-items:center;gap:10px">'
+        +   '<span class="mono" style="color:var(--accent-blue);font-weight:700">' + ibProto + ' :' + ibPort + '</span>'
+        +   '<span>' + ibRemark + '</span>'
+        +   statusBadge
+        + '</div>'
+        + '<div style="display:flex;align-items:center;gap:8px">'
+        +   '<select class="obind select" style="padding:3px 8px;font-size:12px" data-tag="' + esc(ib.tag) + '" data-port="' + ibPort + '">' + rowOpts + '</select>'
+        +   '<button type="button" class="btn btn-ghost" style="padding:3px 8px;font-size:12px" data-detail="' + ib.id + '">详情</button>'
+        +   delBtn
+        + '</div>'
+        + '</div>';
+    }).join('');
+
+    subinboundsHTML = '<div class="subinbounds-area">'
+      + '<div class="subinbounds-title">'
+      +   '<span>其他入站节点 (共 ' + otherItems.length + ' 个)</span>'
+      + '</div>'
+      + subRows
+      + '</div>';
   }
 
-  html += '</div>';
-  box.innerHTML = html;
+  const html = '<div class="section-card">'
+    + '<div class="section-header">'
+    +   '<div class="section-title">'
+    +     '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M16 12H8"/><path d="m12 8 4 4-4 4"/></svg>'
+    +     '核心入站与流量拓扑管线'
+    +     '<span class="section-subtitle">客户端流量经由母机 :' + corePort + ' 入口流向住宅代理出口的全链路状态</span>'
+    +   '</div>'
+    + '</div>'
+    + '<div class="pipeline-container">'
+    +   '<!-- 阶段 1: 客户端入站入口 -->'
+    +   '<div class="pipeline-stage core">'
+    +     '<div class="pipeline-stage-label">'
+    +       '<span>客户端入站入口</span>'
+    +       '<span class="metric-badge badge-purple" style="font-size:10px">母机核心端口</span>'
+    +     '</div>'
+    +     '<div class="pipeline-stage-main">'
+    +       '<span class="mono" style="color:var(--accent-purple)">:' + corePort + '</span>'
+    +       '<span>' + coreRemark + '</span>'
+    +     '</div>'
+    +     '<div class="pipeline-stage-sub">'
+    +       '协议: <span class="mono">' + coreProto + '</span> • 监听: <span class="mono">' + coreListen + '</span>'
+    +     '</div>'
+    +   '</div>'
+    +   '<!-- 阶段 2: 动态调度引擎 -->'
+    +   '<div class="pipeline-flow">'
+    +     '<div class="flow-badge">分流调度</div>'
+    +     '<div class="flow-line"></div>'
+    +     '<span style="font-size:10px;color:var(--text-muted)">0ms 穿透</span>'
+    +   '</div>'
+    +   '<!-- 阶段 3: 真实出网节点 -->'
+    +   stage3HTML
+    + '</div>'
+    + '<!-- 拓扑调度控制条 -->'
+    + '<div class="pipeline-toolbar">'
+    +   '<div class="select-wrap">'
+    +     '<span class="select-label">调度出网出口:</span>'
+    +     '<select class="obind select" data-tag="' + esc(coreNode.tag) + '" data-port="' + corePort + '">' + optionsHTML + '</select>'
+    +   '</div>'
+    +   '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    +     detailBtn
+    +     explorerBtn
+    +     unbindBtn
+    +   '</div>'
+    + '</div>'
+    + subinboundsHTML
+    + '</div>';
+
+  container.innerHTML = html;
 }
 
 function renderJobs(jobs){
@@ -1211,18 +2069,152 @@ function renderJobs(jobs){
   }).join('');
 }
 
+function renderHeroMetrics(){
+  const direct = view.direct || [];
+  const exits = view.exits || [];
+  const allInbounds = [];
+  direct.forEach(i => allInbounds.push({inbound: i, exit: null}));
+  exits.forEach(e => (e.inbounds || []).forEach(i => allInbounds.push({inbound: i, exit: e})));
+
+  // 1. 核心入站 (:443)
+  const coreItem = allInbounds.find(item => item.inbound.port === 443) || (allInbounds.length > 0 ? allInbounds[0] : null);
+  const coreBadge = $('#heroCoreBadge');
+  const coreProto = $('#heroCoreProto');
+  const coreDesc = $('#heroCoreDesc');
+
+  if(coreItem){
+    const ib = coreItem.inbound;
+    const isBound = Boolean(coreItem.exit);
+    if(coreBadge){
+      coreBadge.className = 'metric-badge ' + (isBound ? 'badge-purple' : 'badge-amber');
+      coreBadge.textContent = isBound ? '已挂载住宅出口' : '母机原生直连';
+    }
+    if(coreProto){
+      const pName = (ib.protocol || 'PORT').toUpperCase();
+      coreProto.textContent = pName + (pName === 'VLESS' ? ' + Reality' : (' :' + ib.port));
+    }
+    if(coreDesc){
+      const remark = ib.remark ? esc(ib.remark) : '核心端口 :443';
+      const dest = isBound ? (esc(coreItem.exit.region || '') + ' ' + esc(coreItem.exit.exit_ip || coreItem.exit.host)) : '原生公网出网';
+      coreDesc.innerHTML = '<span>' + remark + '</span><span style="color:var(--border-strong)">•</span><span class="mono" style="color:var(--accent-blue)">' + dest + '</span>';
+    }
+  } else {
+    if(coreBadge){
+      coreBadge.className = 'metric-badge badge-amber';
+      coreBadge.textContent = '暂无 :443 入站';
+    }
+    if(coreProto) coreProto.textContent = ':443 未创建';
+    if(coreDesc) coreDesc.innerHTML = '<span>可在面板中创建 443 节点</span>';
+  }
+
+  // 2. 活跃住宅出口
+  const upExits = exits.filter(e => e.status === 'up');
+  const totalExits = exits.length;
+  const exitsBadge = $('#heroExitsBadge');
+  const exitsCount = $('#heroExitsCount');
+  const exitsDesc = $('#heroExitsDesc');
+
+  if(exitsBadge){
+    const allUp = totalExits > 0 && upExits.length === totalExits;
+    exitsBadge.className = 'metric-badge ' + (totalExits === 0 ? 'badge-amber' : (allUp ? 'badge-green' : 'badge-amber'));
+    exitsBadge.textContent = totalExits === 0 ? '暂无出口' : (allUp ? '100% 连通' : (upExits.length + '/' + totalExits + ' 连通'));
+  }
+  if(exitsCount){
+    exitsCount.innerHTML = exits.length + ' <span style="font-size:14px;color:var(--text-muted);font-weight:400">个在线</span>';
+  }
+  if(exitsDesc){
+    if(exits.length > 0){
+      const regions = Array.from(new Set(exits.map(e => e.country || e.region).filter(Boolean))).slice(0, 2).join(' / ');
+      const isps = exits.map(e => e.quality && e.quality.isp).filter(Boolean);
+      const ispSample = isps.length > 0 ? isps[0] : '';
+      exitsDesc.innerHTML = '<span>' + esc(regions || '全球出口') + (ispSample ? ' (' + esc(ispSample) + ')' : '') + '</span>';
+    } else {
+      exitsDesc.innerHTML = '<span>点击“新建出口”开启隧道</span>';
+    }
+  }
+
+  // 3. 流量分流拓扑
+  const totalIb = allInbounds.length;
+  const boundCount = allInbounds.filter(item => Boolean(item.exit)).length;
+  const directCount = allInbounds.filter(item => !item.exit).length;
+  const splitPct = totalIb > 0 ? Math.round((boundCount / totalIb) * 100) : 0;
+  const splitBadge = $('#heroSplitBadge');
+  const splitVal = $('#heroSplitVal');
+  const splitDesc = $('#heroSplitDesc');
+
+  if(splitBadge){
+    splitBadge.className = 'metric-badge ' + (boundCount > 0 ? 'badge-blue' : 'badge-amber');
+    splitBadge.textContent = boundCount > 0 ? (splitPct + '% 住宅出网') : '100% 母机直连';
+  }
+  if(splitVal){
+    splitVal.innerHTML = boundCount + ' <span style="font-size:14px;color:var(--text-muted);font-weight:400">出口挂载 · ' + directCount + ' 直连</span>';
+  }
+  if(splitDesc){
+    splitDesc.innerHTML = '<span>宿主公网: <span class="mono" style="color:var(--text-main)">' + esc(view.public_ip || '未知') + '</span></span>';
+  }
+
+  // 4. 域名与 HTTPS
+  const sslBadge = $('#heroSSLBadge');
+  const sslHost = $('#heroSSLHost');
+  const sslDesc = $('#heroSSLDesc');
+  const hasDomain = Boolean(view.domain);
+  const isTLS = Boolean(view.is_tls);
+  const sslMode = view.ssl_mode || 'none';
+
+  if(sslBadge){
+    if(sslMode === 'caddy'){
+      sslBadge.className = 'metric-badge badge-green';
+      sslBadge.textContent = 'Caddy HTTPS';
+    } else if(isTLS){
+      sslBadge.className = 'metric-badge badge-green';
+      sslBadge.textContent = '原生 HTTPS';
+    } else if(hasDomain){
+      sslBadge.className = 'metric-badge badge-blue';
+      sslBadge.textContent = '域名外部反代';
+    } else {
+      sslBadge.className = 'metric-badge badge-amber';
+      sslBadge.textContent = 'HTTP 明文';
+    }
+  }
+  if(sslHost){
+    sslHost.textContent = hasDomain ? view.domain : (view.public_ip || '未绑定域名');
+  }
+  if(sslDesc){
+    if(hasDomain){
+      sslDesc.innerHTML = '<span>' + (isTLS ? 'TLS 0ms证书热载' : '已映射分享与订阅源') + '</span>';
+    } else {
+      sslDesc.innerHTML = '<span>可在设置中绑定域名</span>';
+    }
+  }
+
+  // 顶栏宿主机信息药丸
+  const hostPill = $('#headerHostPill');
+  if(hostPill){
+    const pInfo = view.panel_info || backendName();
+    const pip = view.public_ip || '—';
+    hostPill.innerHTML = '<span class="pulse-dot"></span>'
+      + '<span>' + esc(pInfo) + '</span>'
+      + '<span style="color:var(--border-strong)">•</span>'
+      + '<span class="mono" style="color:var(--text-dim)">宿主机: ' + esc(pip) + '</span>';
+  }
+}
+
 async function poll(){
   try{
     view = await api('/api/exits');
-    $('#panel').textContent = view.panel
-      ? (backendName() + ': ' + view.panel)
-      : (view.panel_info || '');
+    const pEl = $('#panel');
+    if(pEl){
+      pEl.textContent = view.panel
+        ? (backendName() + ': ' + view.panel)
+        : (view.panel_info || '');
+    }
     // xray-cf-lite 的节点由它自己生成，fanout 这边只管把它们导到哪条出口
-    $('#newnode').hidden = isXCL();
+    if($('#newnode')) $('#newnode').hidden = isXCL();
     // 链接由 xray-cf-lite 的订阅体系发，fanout 这边导不出来
-    $('#exportAll').hidden = isXCL();
+    if($('#exportAll')) $('#exportAll').hidden = isXCL();
+    renderHeroMetrics();
     renderExits();
-    renderOrphans();
+    renderPipeline();
   }catch(e){}
   try{ renderJobs(await api('/api/jobs') || []); }catch(e){}
 }
@@ -1787,7 +2779,7 @@ document.addEventListener('click', async e => {
   }
 
   // 打开全节点大厅
-  if(e.target.closest('#openExplorerBtn') || e.target.closest('#openExplorerBtn2') || e.target.closest('#openExplorerFromDirect') || e.target.closest('.btn-start-core-exit')){
+  if(e.target.closest('#openExplorerBtn') || e.target.closest('#openExplorerBtn2') || e.target.closest('#openExplorerFromDirect') || e.target.closest('.btn-start-core-exit') || e.target.closest('#openExplorerFromPipeline')){
     openNodeExplorer();
     return;
   }
@@ -1971,6 +2963,8 @@ async function loadNodeExplorer(){
     const res = await api('/api/nodes?' + q.toString());
     nexNodes = res.nodes || [];
     countEl.textContent = '共 ' + nexNodes.length + ' 个节点';
+    const navCnt = $('#navNodeCount');
+    if(navCnt && nexNodes.length > 0) navCnt.textContent = '(' + nexNodes.length + ')';
     renderNodeExplorerList(nexNodes);
   }catch(err){
     listEl.innerHTML = '<div class="empty">加载节点失败: ' + esc(err.message) + '</div>';
@@ -2015,27 +3009,27 @@ function renderNodeExplorerList(nodes){
 
     const ispText = esc(q.isp || q.org || n.hostname);
     const asnText = q.asn ? ' · ' + esc(q.asn) : '';
-    const flag = flagEmoji(n.country_code);
+    const cc = (n.country_code || 'KR').toUpperCase();
 
     const actBtns = n.running
-      ? '<span class="tag-running">🟢 运行中 (槽位 ' + n.slot + ')</span>'
-        + '<button type="button" class="btn-mount-443" data-mount-host="' + esc(n.hostname) + '" data-mount-port="' + primPort + '" title="将已运行的出口挂载到 :' + primPort + ' 节点">🔗 挂载到 ' + primPort + '</button>'
-      : '<button type="button" class="btn-start-exit" data-start-host="' + esc(n.hostname) + '">🚀 开启出口</button>'
-        + '<button type="button" class="btn-mount-443" data-mount-host="' + esc(n.hostname) + '" data-mount-port="' + primPort + '" title="开启此出口并立刻将 :' + primPort + ' 节点挂载至此">🔗 挂载到 ' + primPort + '</button>';
+      ? '<span class="tag-running"><span class="dot-indicator"></span> 运行中 (槽位 ' + n.slot + ')</span>'
+        + '<button type="button" class="btn-mount-443" data-mount-host="' + esc(n.hostname) + '" data-mount-port="' + primPort + '" title="将已运行的出口挂载到 :' + primPort + ' 节点"><svg class="icon-xs" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg><span>挂载到 ' + primPort + '</span></button>'
+      : '<button type="button" class="btn-start-exit" data-start-host="' + esc(n.hostname) + '"><svg class="icon-xs" viewBox="0 0 24 24"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg><span>开启出口</span></button>'
+        + '<button type="button" class="btn-mount-443" data-mount-host="' + esc(n.hostname) + '" data-mount-port="' + primPort + '" title="开启此出口并立刻将 :' + primPort + ' 节点挂载至此"><svg class="icon-xs" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg><span>挂载到 ' + primPort + '</span></button>';
 
     return '<div class="ncard">'
-      + '<div class="ncard-flag">' + flag + '</div>'
+      + '<div class="ncard-flag"><span class="country-tag">' + cc + '</span></div>'
       + '<div class="ncard-info">'
       +   '<div class="ncard-title-row">'
       +     '<span class="ncard-host">' + esc(n.country || n.country_code) + ' · ' + esc(n.hostname) + '</span>'
-      +     '<span class="ncard-ip">' + esc(n.ip) + '</span>'
+      +     '<span class="ncard-ip mono">' + esc(n.ip) + '</span>'
       +     '<span class="qbadge ' + qBadgeClass + '">' + esc(q.type_label || '节点') + ' · ' + (q.score || 0) + '分</span>'
       +   '</div>'
       +   '<div class="ncard-meta-row">'
-      +     '<span>🏢 ' + ispText + asnText + '</span>'
-      +     '<span>⚡ ' + n.speed_mbps.toFixed(1) + ' Mbps</span>'
-      +     '<span>📶 ' + n.ping + ' ms</span>'
-      +     '<span>👥 ' + n.sessions + ' 会话</span>'
+      +     '<span>' + ispText + asnText + '</span>'
+      +     '<span>速度: ' + n.speed_mbps.toFixed(1) + ' Mbps</span>'
+      +     '<span>延迟: ' + n.ping + ' ms</span>'
+      +     '<span>' + n.sessions + ' 会话</span>'
       +   '</div>'
       + '</div>'
       + '<div class="ncard-acts">' + actBtns + '</div>'
@@ -2156,8 +3150,8 @@ function updateExportViews(){
   if(boxEl) boxEl.value = links.join('\n');
   if(countEl){
     let filterLabel = '全部';
-    if(exActiveFilter === 'direct') filterLabel = '🌐 仅直连';
-    else if(exActiveFilter === 'exit') filterLabel = '🔀 仅出口';
+    if(exActiveFilter === 'direct') filterLabel = '仅直连';
+    else if(exActiveFilter === 'exit') filterLabel = '仅出口';
     countEl.textContent = links.length + ' 条 (' + filterLabel + ')';
   }
   if(!wrap) return;
@@ -2168,8 +3162,8 @@ function updateExportViews(){
   wrap.innerHTML = items.map(it => {
     const isDir = it.is_direct;
     const badge = isDir
-      ? '<span class="ex-pill direct">🌐 原生直连</span>'
-      : '<span class="ex-pill exit">🔀 出口 ' + esc(it.exit_region || '—') + (it.exit_ip ? ' · ' + esc(it.exit_ip) : '') + '</span>';
+      ? '<span class="ex-pill direct">原生直连</span>'
+      : '<span class="ex-pill exit">出口 ' + esc(it.exit_region || '—') + (it.exit_ip ? ' · ' + esc(it.exit_ip) : '') + '</span>';
     const linksList = it.links || [];
     let linksHtml = '';
     if(!linksList.length){
@@ -2178,14 +3172,14 @@ function updateExportViews(){
       const link = linksList[0];
       linksHtml = '<div style="display:flex;align-items:center;gap:8px">'
         + '<div class="ex-card-link-preview" title="' + esc(link) + '">' + esc(link) + '</div>'
-        + '<button type="button" class="btn-copy-one" data-copy="' + esc(link) + '">📋 复制</button>'
+        + '<button type="button" class="btn-copy-one" data-copy="' + esc(link) + '">复制</button>'
         + '</div>';
     } else {
       const copyAllCardLinks = linksList.join('\n');
       linksHtml = '<div class="ex-card-sublinks">'
         + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;flex-wrap:wrap">'
         +   '<span style="font-size:11px;color:var(--dim)">共 ' + linksList.length + ' 个客户端凭据:</span>'
-        +   '<button type="button" class="btn-copy-one" data-copy="' + esc(copyAllCardLinks) + '">📋 复制全部 ' + linksList.length + ' 条链接</button>'
+        +   '<button type="button" class="btn-copy-one" data-copy="' + esc(copyAllCardLinks) + '">复制全部 ' + linksList.length + ' 条链接</button>'
         + '</div>'
         + linksList.map((lnk, idx) => {
             const client = (it.clients && it.clients[idx]) ? it.clients[idx] : null;
@@ -2565,6 +3559,9 @@ if(nexKwInput && nexKwClear){
 
 poll();
 setInterval(poll, 3000);
+api('/api/nodes?sort=quality').then(r => {
+  if(r && r.nodes && $('#navNodeCount')) $('#navNodeCount').textContent = '(' + r.nodes.length + ')';
+}).catch(()=>{});
 </script>
 </body>
 </html>`

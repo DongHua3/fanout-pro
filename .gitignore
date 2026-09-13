@@ -1,3 +1,5 @@
 fanout
+fanout.exe
+fanout-*
 *.tar.gz
 *.log
