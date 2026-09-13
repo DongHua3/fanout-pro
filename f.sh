@@ -92,7 +92,7 @@ public_ip() {
 
 pause() {
   echo
-  echo -ne "  ${D}⌨️  按回车键继续...${N}"
+  echo -ne "  ${D}按回车键继续...${N}"
   read -r _
 }
 
@@ -102,7 +102,7 @@ show_info() {
   bp=$(cat "$WORK_DIR/basepath" 2>/dev/null || echo "")
   pw=$(cat "$WORK_DIR/password" 2>/dev/null || echo "-")
   ip=$(public_ip)
-  ver=$("$BIN" -version 2>/dev/null || echo 'v1.3.7')
+  ver=$("$BIN" -version 2>/dev/null || echo 'v1.3.9')
 
   dom=$(sed -n 's/.*"domain"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null || true)
   cf=$(sed -n 's/.*"cert_file"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORK_DIR/settings.json" 2>/dev/null || true)
@@ -112,15 +112,15 @@ show_info() {
   n=$(ls -d /var/run/netns/fo* 2>/dev/null | wc -l | tr -d ' ')
 
   if [[ $state == running ]]; then
-    state_badge="${G}● 运行中${N}"
+    state_badge="${G}[运行中]${N}"
   else
-    state_badge="${R}● 已停止${N}"
+    state_badge="${R}[已停止]${N}"
   fi
 
   if svc_is_enabled; then
-    autostart_badge="${G}已开启${N}"
+    autostart_badge="${G}[已开启]${N}"
   else
-    autostart_badge="${D}已关闭${N}"
+    autostart_badge="${D}[已关闭]${N}"
   fi
 
   local path_part=""
@@ -129,7 +129,7 @@ show_info() {
   local panel_url="" proto_tag=""
   if [[ "$sm" == "caddy" ]] && [[ -n "$dom" ]]; then
     panel_url="https://${dom}/${path_part}"
-    proto_tag="${G}🔒 Caddy 443 反代${N}"
+    proto_tag="${G}[Caddy 443 反代]${N}"
   elif [[ -n "$cf" ]] && [[ "$sm" != "none" ]]; then
     local host_part="${dom:-$ip}"
     if [[ "$port" == "443" ]]; then
@@ -137,13 +137,13 @@ show_info() {
     else
       panel_url="https://${host_part}:${port}/${path_part}"
     fi
-    proto_tag="${G}🔒 原生 HTTPS${N}"
+    proto_tag="${G}[原生 HTTPS]${N}"
   elif [[ -n "$dom" ]]; then
     panel_url="http://${dom}:${port}/${path_part}"
-    proto_tag="${Y}🌐 纯域名 HTTP${N}"
+    proto_tag="${Y}[纯域名 HTTP]${N}"
   else
     panel_url="http://${ip}:${port}/${path_part}"
-    proto_tag="${D}🌐 公网 IP 访问${N}"
+    proto_tag="${D}[公网 IP 访问]${N}"
   fi
 
   echo
@@ -209,10 +209,10 @@ change_port() {
   read -rp "  请输入新端口 [1-65535] (回车保持不变): " new
   [[ -z $new ]] && { echo -e "  ${D}已取消修改${N}"; return; }
   if ! [[ $new =~ ^[0-9]+$ ]] || (( new < 1 || new > 65535 )); then
-    echo -e "  ${R}❌ 端口不合法，必须为 1-65535 的纯数字${N}"; return
+    echo -e "  ${R}[错误] 端口不合法，必须为 1-65535 的纯数字${N}"; return
   fi
   if ss -tln 2>/dev/null | grep -q ":${new} "; then
-    echo -e "  ${R}❌ 端口 ${new} 已被系统其它进程占用${N}"; return
+    echo -e "  ${R}[错误] 端口 ${new} 已被系统其它进程占用${N}"; return
   fi
   if [[ -f "$WORK_DIR/settings.json" ]]; then
     update_json_val "port" "$new"
@@ -223,7 +223,7 @@ change_port() {
   sed -i "s/-web ${cur}/-web ${new}/" "$UNIT" 2>/dev/null
   svc_reload
   svc_restart
-  echo -e "  ${G}✅ 管理面板监听端口已成功改为: ${new} 并重启生效${N}"
+  echo -e "  ${G}[成功] 管理面板监听端口已成功改为: ${new} 并重启生效${N}"
 }
 
 reset_password() {
@@ -239,7 +239,7 @@ reset_password() {
   umask 077
   echo "$pw" > "$WORK_DIR/password"
   svc_restart
-  echo -e "  ${G}✅ 访问口令已成功重置为: ${Y}${pw}${N}"
+  echo -e "  ${G}[成功] 访问口令已成功重置为: ${Y}${pw}${N}"
 }
 
 reset_basepath() {
@@ -260,7 +260,7 @@ reset_basepath() {
     echo "$bp" > "$WORK_DIR/basepath"
     svc_restart
   fi
-  echo -e "  ${G}✅ 访问路径已成功更新为: ${B}/${bp}/${N}"
+  echo -e "  ${G}[成功] 访问路径已成功更新为: ${B}/${bp}/${N}"
 }
 
 ipv6_state() {
@@ -304,7 +304,7 @@ show_links() {
   echo
   echo -e "  ${B}┌─ [ 项目官方开源主页 ] ────────────────────────────────────────┐${N}"
   echo -e "  ${B}│${N}  GitHub 仓库: ${W}https://github.com/DongHua3/fanout-pro${N}        ${B}│${N}"
-  echo -e "  ${B}│${N}  欢迎前往仓库 Star ⭐、提交反馈与查看最新版本发布日志           ${B}│${N}"
+  echo -e "  ${B}│${N}  欢迎前往仓库 Star 点赞、提交反馈与查看最新版本发布日志         ${B}│${N}"
   echo -e "  ${B}└───────────────────────────────────────────────────────────────┘${N}"
 }
 
@@ -596,7 +596,7 @@ setup_caddy() {
   local p443
   p443=$(ss -tlnp 2>/dev/null | grep -E ':(443|https)\b' || true)
   if [[ -n "$p443" ]]; then
-    echo -e "  ${R}⚠️ 警告: 检测到 443 端口已被系统程序占用！${N}"
+    echo -e "  ${R}[警告] 检测到 443 端口已被系统程序占用！${N}"
     echo -e "  ${D}${p443}${N}"
     if echo "$p443" | grep -qiE 'xray|3x-ui|xcl'; then
       echo -e "  ${Y}检测到 Xray / 3x-ui 节点正在使用 443 端口 (如 Reality 偷跑 443)。${N}"
@@ -678,7 +678,7 @@ EOF
   local bp
   bp=$(cat "$WORK_DIR/basepath" 2>/dev/null || echo "")
   echo
-  echo -e "  ${G}✓ Caddy 443 自动化反代已就绪！${N}"
+  echo -e "  ${G}[成功] Caddy 443 自动化反代已就绪！${N}"
   echo -e "  管理面板地址: ${B}https://${dom}/${bp}/${N} (免端口)"
   echo -e "  面板本地监听: ${D}http://127.0.0.1:${port}/${bp}/${N}"
 }
@@ -694,10 +694,10 @@ ssl_menu() {
 
     local sm_desc="${D}未配置 (HTTP 直连)${N}"
     [[ "$sm" == "none" ]] && sm_desc="${Y}外部反代 / 纯域名 HTTP${N}"
-    [[ "$sm" == "custom" ]] && sm_desc="${G}🔒 原生自定义 SSL 证书 (HTTPS)${N}"
-    [[ "$sm" == "acme_standalone" ]] && sm_desc="${G}🔒 ACME Standalone 自动证书${N}"
-    [[ "$sm" == "acme_cf_dns" ]] && sm_desc="${G}🔒 ACME Cloudflare DNS 证书${N}"
-    [[ "$sm" == "caddy" ]] && sm_desc="${G}🔒 Caddy 自动化反代 (443免端口)${N}"
+    [[ "$sm" == "custom" ]] && sm_desc="${G}[原生自定义 SSL 证书 (HTTPS)]${N}"
+    [[ "$sm" == "acme_standalone" ]] && sm_desc="${G}[ACME Standalone 自动证书]${N}"
+    [[ "$sm" == "acme_cf_dns" ]] && sm_desc="${G}[ACME Cloudflare DNS 证书]${N}"
+    [[ "$sm" == "caddy" ]] && sm_desc="${G}[Caddy 自动化反代 (443免端口)]${N}"
 
     echo
     echo -e "  ${B}╔═══════════════════════════════════════════════════════════════╗${N}"
@@ -715,11 +715,11 @@ ssl_menu() {
     fi
     echo -e "  ${B}└───────────────────────────────────────────────────────────────┘${N}"
     echo
-    echo -e "  ${B}── [ 🌐 域名与反向代理 ] ───────────────────────────────────────${N}"
+    echo -e "  ${B}── [ 域名与反向代理 ] ──────────────────────────────────────────${N}"
     echo -e "   ${Y} 1.${N} 设置 / 修改面板绑定域名 (用于反代或直接访问)"
     echo -e "   ${Y} 2.${N} ${G}一键配置 Caddy 自动化反代 (母机 443 免端口纯净访问)${N}"
     echo
-    echo -e "  ${B}── [ 🔒 SSL / HTTPS 证书申请与管理 ] ──────────────────────────${N}"
+    echo -e "  ${B}── [ SSL / HTTPS 证书申请与管理 ] ──────────────────────────────${N}"
     echo -e "   ${Y} 3.${N} 绑定已有自定义证书路径 (.crt / .key 文件)"
     echo -e "   ${Y} 4.${N} 一键申请 ACME 免费证书 (HTTP-80 Standalone 模式)"
     echo -e "   ${Y} 5.${N} 一键申请 ACME 免费证书 (Cloudflare DNS API 零端口模式)"
@@ -728,7 +728,7 @@ ssl_menu() {
     echo
     echo -e "   ${R} 0.${N} 返回主菜单"
     echo -e "  ${B}────────────────────────────────────────────────────────────────${N}"
-    echo -ne "  ${W}👉 请输入选项 [0-7]:${N} "
+    echo -ne "  ${W}请输入选项 [0-7]:${N} "
     read -r sub_ch
 
     case "${sub_ch:-}" in
@@ -754,30 +754,30 @@ menu() {
     echo -e "  ${B}╚═══════════════════════════════════════════════════════════════╝${N}"
     show_info
     echo
-    echo -e "  ${B}── [ ⚡ 服务控制 ] ──────────────────────────────────────────────${N}"
+    echo -e "  ${B}── [ 服务控制 ] ────────────────────────────────────────────────${N}"
     echo -e "   ${Y} 1.${N} 启动服务                    ${Y} 2.${N} 停止服务"
     echo -e "   ${Y} 3.${N} 重启服务                    ${Y} 4.${N} 查看实时运行日志"
     echo
-    echo -e "  ${B}── [ 🌐 节点与隧道 ] ───────────────────────────────────────────${N}"
+    echo -e "  ${B}── [ 节点与隧道 ] ──────────────────────────────────────────────${N}"
     echo -e "   ${Y} 5.${N} 活跃隧道列表                ${Y} 6.${N} 详细连接与质量信息"
     echo
-    echo -e "  ${B}── [ ⚙️ 面板与安全配置 ] ───────────────────────────────────────${N}"
+    echo -e "  ${B}── [ 面板与安全配置 ] ──────────────────────────────────────────${N}"
     echo -e "   ${Y} 7.${N} 修改面板监听端口            ${Y} 8.${N} 修改管理访问口令"
     echo -e "   ${Y} 9.${N} 修改路径前缀 (防扫描探测)   ${Y}10.${N} ${G}域名与 SSL (HTTPS) 设置${N}"
     echo
-    echo -e "  ${B}── [ 🛠️ 系统运维 ] ─────────────────────────────────────────────${N}"
+    echo -e "  ${B}── [ 系统运维 ] ────────────────────────────────────────────────${N}"
     echo -e "   ${Y}11.${N} 开机自启开关                ${Y}12.${N} 检查更新 / 升级版本"
     echo -e "   ${Y}13.${N} 卸载 Fanout                 ${Y}14.${N} 项目开源主页"
     echo
     echo -e "   ${R} 0.${N} 退出管理脚本"
     echo -e "  ${B}────────────────────────────────────────────────────────────────${N}"
-    echo -ne "  ${W}👉 请输入选项 [0-14]:${N} "
+    echo -ne "  ${W}请输入选项 [0-14]:${N} "
     read -r choice
 
     case "$choice" in
-      1) svc_start   && echo -e "\n  ${G}✅ 服务已启动${N}"; pause ;;
-      2) svc_stop    && echo -e "\n  ${Y}⚠️ 服务已停止${N}"; pause ;;
-      3) svc_restart && echo -e "\n  ${G}✅ 服务已重启${N}"; pause ;;
+      1) svc_start   && echo -e "\n  ${G}[成功] 服务已启动${N}"; pause ;;
+      2) svc_stop    && echo -e "\n  ${Y}[提示] 服务已停止${N}"; pause ;;
+      3) svc_restart && echo -e "\n  ${G}[成功] 服务已重启${N}"; pause ;;
       4) echo; svc_logs 40; pause ;;
       5) list_tunnels; pause ;;
       6) show_info; pause ;;
@@ -788,10 +788,10 @@ menu() {
       11)
         if svc_is_enabled; then
           svc_disable
-          echo -e "\n  ${Y}⚠️ 已关闭开机自启${N}"
+          echo -e "\n  ${Y}[提示] 已关闭开机自启${N}"
         else
           svc_enable
-          echo -e "\n  ${G}✅ 已开启开机自启${N}"
+          echo -e "\n  ${G}[成功] 已开启开机自启${N}"
         fi
         pause ;;
       12) do_update; pause ;;
