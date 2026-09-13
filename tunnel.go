@@ -242,23 +242,14 @@ func (t *Tunnel) setCredential(c SocksCred) {
 
 // probeExitIP 通过隧道查询出口 IP，用于确认这条隧道确实换了 IP。
 func (t *Tunnel) probeExitIP() (string, error) {
-	start := time.Now()
 	out, err := exec.Command("ip", "netns", "exec", t.nsName(),
 		"curl", "-s", "--max-time", "15", "http://api.ipify.org").Output()
 	if err != nil {
 		return "", fmt.Errorf("查询出口 IP 失败: %w", err)
 	}
-	latency := int(time.Since(start).Milliseconds())
 	ip := strings.TrimSpace(string(out))
 	if net.ParseIP(ip) == nil {
 		return "", fmt.Errorf("出口 IP 返回异常: %q", ip)
-	}
-	if latency > 0 {
-		t.mu.Lock()
-		if t.Node.Ping == 0 {
-			t.Node.Ping = latency
-		}
-		t.mu.Unlock()
 	}
 	return ip, nil
 }
