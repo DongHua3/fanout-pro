@@ -48,18 +48,28 @@ func (m *Manager) WatchHealth() {
 // openvpn 死掉后照样能出网，只是出口变回了母机 IP。
 // 所以要比对出口 IP 是否仍是建立隧道时拿到的那个。
 func (m *Manager) tunnelHealthy(t *Tunnel) bool {
+	start := time.Now()
 	out, err := exec.Command("ip", "netns", "exec", t.nsName(),
 		"curl", "-s", "--max-time", strconv.Itoa(int(healthTimeout.Seconds())),
 		"http://api.ipify.org").Output()
 	if err != nil {
 		return false
 	}
+	latency := int(time.Since(start).Milliseconds())
 	got := strings.TrimSpace(string(out))
 	if got == "" {
 		return false
 	}
 	// 出口 IP 变了说明 VPN 已经断开，流量退回了母机
-	return got == t.ExitIP
+	if got == t.ExitIP {
+		if latency > 0 {
+			t.mu.Lock()
+			t.Node.Ping = latency
+			t.mu.Unlock()
+		}
+		return true
+	}
+	return false
 }
 
 // reconnect 就地把一条隧道换到别的节点上，保持槽位与端口不变，
