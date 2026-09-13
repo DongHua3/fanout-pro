@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -229,10 +230,13 @@ func (x *XCL) syncOutbounds(cfg map[string]any, tunnels []*Tunnel) {
 
 // Bind 把某个入站的流量导向指定隧道。hostname 留空表示解绑，恢复走 xray-cf-lite 的 direct。
 func (x *XCL) Bind(inboundTag string, hostname string, tunnels []*Tunnel) error {
+	if hostname == "direct" || hostname == "none" {
+		hostname = ""
+	}
 	var target *Tunnel
 	if hostname != "" {
 		for _, t := range tunnels {
-			if t.Node.HostName == hostname {
+			if t.Node.HostName == hostname || sanitizeTag(t.Node.HostName) == sanitizeTag(hostname) {
 				target = t
 				break
 			}
@@ -255,12 +259,25 @@ func (x *XCL) Bind(inboundTag string, hostname string, tunnels []*Tunnel) error 
 	if err != nil {
 		return err
 	}
+	var targetInbound *Inbound
+	for _, ib := range current {
+		if ib.Tag == inboundTag ||
+			fmt.Sprintf("%d", ib.Port) == inboundTag ||
+			fmt.Sprintf("inbound-%d", ib.Port) == inboundTag ||
+			fmt.Sprintf("in-%d-tcp", ib.Port) == inboundTag ||
+			strconv.Itoa(ib.ID) == inboundTag {
+			cp := ib
+			targetInbound = &cp
+			break
+		}
+	}
+	if targetInbound == nil {
+		return fmt.Errorf("入站 %s 不存在", inboundTag)
+	}
+	canonicalTag := targetInbound.Tag
 	knownTags := map[string]bool{}
 	for _, ib := range current {
 		knownTags[ib.Tag] = true
-	}
-	if !knownTags[inboundTag] {
-		return fmt.Errorf("入站 %s 不存在", inboundTag)
 	}
 
 	cfg, err := x.loadCfg()
@@ -289,7 +306,11 @@ func (x *XCL) Bind(inboundTag string, hostname string, tunnels []*Tunnel) error 
 		}
 		remain := []any{}
 		for _, it := range toStringSlice(m["inboundTag"]) {
-			if it != inboundTag && knownTags[it] {
+			isTarget := it == canonicalTag || it == inboundTag ||
+				(targetInbound.Port > 0 && (it == fmt.Sprintf("%d", targetInbound.Port) ||
+					it == fmt.Sprintf("inbound-%d", targetInbound.Port) ||
+					strings.HasPrefix(it, fmt.Sprintf("in-%d-", targetInbound.Port))))
+			if !isTarget && knownTags[it] {
 				remain = append(remain, it)
 			}
 		}
@@ -302,7 +323,7 @@ func (x *XCL) Bind(inboundTag string, hostname string, tunnels []*Tunnel) error 
 	if target != nil {
 		cleaned = append(cleaned, map[string]any{
 			"type":        "field",
-			"inboundTag":  []any{inboundTag},
+			"inboundTag":  []any{canonicalTag},
 			"outboundTag": tunnelTag(target),
 		})
 	}

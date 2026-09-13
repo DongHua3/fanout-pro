@@ -189,6 +189,86 @@ textarea:focus{outline:none;border-color:var(--accent)}
   transition:opacity .18s}
 .toast.show{opacity:1}
 .toast.bad{border-color:rgba(194,84,80,.5);color:var(--bad)}
+
+/* 端口推荐与占用指示 */
+.port-recom-wrap{margin-top:6px;padding:6px 8px;background:#0e1116;border:1px solid var(--line);border-radius:4px}
+.port-recom-title{font-size:11px;color:var(--dim);margin-bottom:5px}
+.port-chips{display:flex;flex-wrap:wrap;gap:5px}
+.pchip{font-size:11px;padding:2px 7px;border-radius:3px;background:#181c23;border:1px solid var(--line);cursor:pointer;color:var(--text);display:inline-flex;align-items:center;gap:3px}
+.pchip:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.pchip.occupied{opacity:.5;border-color:rgba(194,84,80,.4);color:var(--bad);cursor:not-allowed}
+.pchip.free{border-color:rgba(63,166,107,.4);color:var(--ok)}
+.port-status{font-size:11px;margin-top:5px;min-height:16px}
+.port-status.bad{color:var(--bad)}
+.port-status.ok{color:var(--ok)}
+
+/* 快速解绑与直连交互 */
+.chip-group{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:3px;background:#0e1116;overflow:hidden}
+.chip-group .chip{border:none;border-radius:0;background:transparent}
+.chip-unbind{padding:1px 5px;background:transparent;border:none;border-left:1px solid var(--line);color:var(--dim);cursor:pointer;font-size:10px}
+.chip-unbind:hover{color:var(--bad);background:rgba(194,84,80,.15)}
+
+.unbind-bar{display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(201,144,58,.1);border:1px solid rgba(201,144,58,.3);border-radius:4px;margin-bottom:12px}
+.ub-hint{font-size:12px;color:var(--text);flex:1}
+.btn-unbind{background:var(--bad);border-color:var(--bad);color:#fff;font-weight:600;font-size:12px;padding:4px 10px;border-radius:4px;cursor:pointer}
+.btn-unbind:hover{opacity:.9}
+.direct-bar{padding:8px 12px;background:rgba(63,166,107,.1);border:1px solid rgba(63,166,107,.3);border-radius:4px;margin-bottom:12px;font-size:12px;color:var(--ok)}
+
+/* 直连看板 */
+.direct-section{margin-top:20px;border:1px solid var(--line);border-radius:6px;background:var(--panel);padding:12px 14px}
+.direct-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.dh-title{display:flex;align-items:center;gap:6px}
+.dh-title h3{font-size:13px;margin:0;font-weight:600;color:var(--text)}
+.dh-ip{font-size:11px;color:var(--dim)}
+.btn-subtle{font-size:11px;padding:3px 8px;background:#222833;border:1px solid var(--line);color:var(--text);border-radius:3px;cursor:pointer}
+.btn-subtle:hover{border-color:var(--accent);color:var(--accent)}
+
+/* 443 核心卡片 */
+.core-inbound-card{border:1px solid rgba(74,158,218,.4);border-radius:6px;background:#131822;padding:12px;margin-bottom:10px}
+.cic-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cic-badge{font-size:11px;font-weight:600;padding:2px 6px;border-radius:3px;background:rgba(74,158,218,.2);color:var(--accent)}
+.cic-title{font-size:13px;font-weight:600}
+.cic-status{font-size:11px;padding:2px 6px;border-radius:3px}
+.cic-status.direct{background:rgba(63,166,107,.15);color:var(--ok)}
+.cic-status.bound{background:rgba(201,144,58,.15);color:var(--warn)}
+.cic-acts{display:flex;gap:6px;align-items:center}
+.btn-start-core-exit{font-size:11px;padding:3px 8px;border-radius:3px;background:var(--accent);border:1px solid var(--accent);color:#0b0e12;font-weight:600;cursor:pointer}
+
+/* 全节点大厅 */
+.sheet-wide{max-width:960px!important;width:95vw}
+.nex-controls{padding:10px 16px;border-bottom:1px solid var(--line);background:#13171e;display:flex;flex-direction:column;gap:8px}
+.nex-search-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.nex-search-box{display:flex;align-items:center;gap:6px;flex:1;min-width:260px;background:#0e1116;border:1px solid var(--line);border-radius:4px;padding:4px 8px}
+.nex-search-box input{border:none;background:transparent;padding:2px 0;width:100%;color:var(--text);font:inherit}
+.nex-search-box input:focus{outline:none}
+.nex-sort-group{display:flex;align-items:center;gap:6px}
+.sort-label{font-size:11px;color:var(--dim)}
+.nex-sort-btn{font-size:11px;padding:3px 8px;border-radius:3px;background:#181c23;border:1px solid var(--line);color:var(--dim);cursor:pointer}
+.nex-sort-btn.active{background:var(--accent);border-color:var(--accent);color:#0b0e12;font-weight:600}
+.nex-filter-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.nex-filter-chip{font-size:11px;padding:2px 8px;border-radius:12px;background:#181c23;border:1px solid var(--line);color:var(--dim);cursor:pointer}
+.nex-filter-chip.active{background:rgba(74,158,218,.2);border-color:var(--accent);color:var(--text);font-weight:600}
+.nex-list-wrap{max-height:60vh;overflow-y:auto;padding:12px 16px}
+.nex-list{display:flex;flex-direction:column;gap:8px}
+.ncard{display:grid;grid-template-columns:auto 1fr auto;gap:10px 14px;align-items:center;padding:10px 14px;background:#181c23;border:1px solid var(--line);border-radius:6px}
+.ncard:hover{border-color:rgba(74,158,218,.4)}
+.ncard-flag{font-size:22px;line-height:1}
+.ncard-info{display:flex;flex-direction:column;gap:3px;overflow:hidden}
+.ncard-title-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ncard-host{font-weight:600;font-size:13px;color:var(--text)}
+.ncard-ip{font-family:inherit;font-size:12px;color:var(--dim)}
+.qbadge{font-size:11px;padding:1px 6px;border-radius:3px;font-weight:600}
+.qbadge.res{background:rgba(63,166,107,.18);color:#52c41a;border:1px solid rgba(82,196,26,.3)}
+.qbadge.dc{background:rgba(140,150,165,.15);color:var(--dim);border:1px solid rgba(140,150,165,.25)}
+.qbadge.mob{background:rgba(201,144,58,.18);color:#faad14;border:1px solid rgba(250,173,20,.3)}
+.ncard-meta-row{display:flex;align-items:center;gap:12px;font-size:11px;color:var(--dim);flex-wrap:wrap}
+.ncard-acts{display:flex;align-items:center;gap:6px}
+.btn-start-exit{font-size:11px;padding:4px 8px;border-radius:3px;background:#222833;border:1px solid var(--line);color:var(--text);cursor:pointer}
+.btn-start-exit:hover{border-color:var(--accent);color:var(--accent)}
+.btn-mount-443{font-size:11px;padding:4px 9px;border-radius:3px;background:var(--accent);border:1px solid var(--accent);color:#0b0e12;font-weight:600;cursor:pointer}
+.btn-mount-443:hover{opacity:.9}
+.tag-running{font-size:11px;padding:3px 8px;border-radius:3px;background:rgba(63,166,107,.15);color:var(--ok);border:1px solid rgba(63,166,107,.3)}
+.badge{background:var(--accent);color:#0b0e12;font-size:10px;font-weight:700;padding:1px 5px;border-radius:8px;margin-left:3px}
 </style>
 </head>
 <body>
@@ -196,6 +276,10 @@ textarea:focus{outline:none;border-color:var(--accent)}
   <h1>fanout</h1>
   <span class="count" id="panel"></span>
   <span class="spacer"></span>
+  <button class="primary" id="openExplorerBtn" title="全节点大厅（质量/速度降序、自由挑选住宅节点）">
+    <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+    🌟 节点大厅
+  </button>
   <button class="icon" id="settingsBtn" title="设置">
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
   </button>
@@ -214,6 +298,10 @@ textarea:focus{outline:none;border-color:var(--accent)}
     <h2>出口</h2>
     <span class="count" id="ecount"></span>
     <span class="spacer"></span>
+    <button id="openExplorerBtn2" title="全节点大厅（质量/速度降序）">
+      <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      节点大厅
+    </button>
     <button id="exportAll" title="导出全部节点链接">
       <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
       导出链接
@@ -345,6 +433,11 @@ textarea:focus{outline:none;border-color:var(--accent)}
         <span>端口</span>
         <input id="nport" type="text" inputmode="numeric" placeholder="留空随机分配">
       </label>
+      <div class="port-recom-wrap">
+        <div class="port-recom-title">常用推荐端口（点击填入）：</div>
+        <div class="port-chips" id="nport-chips"></div>
+        <div class="port-status" id="nport-status"></div>
+      </div>
       <label class="f">
         <span>备注</span>
         <input id="nremark" type="text" placeholder="留空自动命名">
@@ -480,6 +573,47 @@ textarea:focus{outline:none;border-color:var(--accent)}
   </div>
 </div>
 
+<div class="modal" id="nodeExplorer">
+  <div class="sheet sheet-wide">
+    <div class="head">
+      <div style="display:flex;align-items:center;gap:10px">
+        <h2>🌟 全节点大厅 (Node Explorer)</h2>
+        <span class="count" id="nex-count">正在加载节点...</span>
+      </div>
+      <span class="spacer"></span>
+      <button class="icon" data-close="nodeExplorer" title="关闭">
+        <svg viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+    <div class="nex-controls">
+      <div class="nex-search-row">
+        <div class="nex-search-box">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" id="nex-kw" placeholder="快速搜索国家、城市、IP、ISP 运营商、ASN...">
+        </div>
+        <div class="nex-sort-group">
+          <span class="sort-label">排序方式:</span>
+          <button type="button" class="nex-sort-btn active" data-sort="quality" title="家宽优先，纯净度与信誉得分由高到低">🌟 质量优先</button>
+          <button type="button" class="nex-sort-btn" data-sort="speed" title="带宽吞吐量由高到低">⚡ 速度降序</button>
+          <button type="button" class="nex-sort-btn" data-sort="ping" title="响应延迟由低到高">📶 延迟升序</button>
+        </div>
+      </div>
+      <div class="nex-filter-row">
+        <div class="nex-types" id="nex-types">
+          <button type="button" class="nex-filter-chip active" data-type="">全部类型</button>
+          <button type="button" class="nex-filter-chip" data-type="residential">🏠 优质家庭宽带 (95+分)</button>
+          <button type="button" class="nex-filter-chip" data-type="datacenter">🏢 机房/IDC</button>
+        </div>
+        <span class="spacer"></span>
+        <div class="nex-regions" id="nex-regions" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+      </div>
+    </div>
+    <div class="nex-list-wrap">
+      <div class="nex-list" id="nex-list"></div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -542,6 +676,102 @@ async function copy(text){
 let view = {exits:[], direct:[], panel:'', backend:'', public_ip:''};
 let inbounds = [];
 
+const RECOMMENDED_PORTS = [443, 8443, 2053, 2083, 2096, 80, 8080, 8880, 'random'];
+
+function getOccupiedPorts(excludePort){
+  const set = new Map();
+  (view.exits || []).forEach(e => {
+    if(e.port && e.port !== excludePort) set.set(e.port, '出口 SOCKS5 :' + e.port);
+    (e.inbounds || []).forEach(ib => {
+      if(ib.port && ib.port !== excludePort) set.set(ib.port, '入站 ' + (ib.remark || ib.protocol) + ' :' + ib.port);
+    });
+  });
+  (view.direct || []).forEach(ib => {
+    if(ib.port && ib.port !== excludePort) set.set(ib.port, '直连入站 ' + (ib.remark || ib.protocol) + ' :' + ib.port);
+  });
+  return set;
+}
+
+function getRandomHighPort(occupied){
+  for(let i = 0; i < 60; i++){
+    const p = Math.floor(Math.random() * 40000) + 20000;
+    if(!occupied.has(p)) return p;
+  }
+  return 35443;
+}
+
+function renderPortRecommendations(containerId, statusId, inputId, saveBtnId, excludePort){
+  const box = $('#' + containerId);
+  const statusEl = $('#' + statusId);
+  const inputEl = $('#' + inputId);
+  if(!box || !inputEl) return;
+
+  const occupied = getOccupiedPorts(excludePort);
+
+  box.innerHTML = RECOMMENDED_PORTS.map(p => {
+    if(p === 'random'){
+      return '<button type="button" class="pchip" data-paction="random">🎲 随机高位</button>';
+    }
+    const isOcc = occupied.has(p);
+    const label = (p === 443 ? '🔥 443' : '' + p) + (isOcc ? ' [已占用]' : '');
+    return '<button type="button" class="pchip ' + (isOcc ? 'occupied' : 'free') + '" data-port="' + p + '"'
+      + (isOcc ? ' disabled' : '') + '>' + label + '</button>';
+  }).join('');
+
+  box.onclick = e => {
+    const chip = e.target.closest('.pchip');
+    if(!chip || chip.disabled) return;
+    if(chip.dataset.paction === 'random'){
+      inputEl.value = getRandomHighPort(occupied);
+    }else if(chip.dataset.port){
+      inputEl.value = chip.dataset.port;
+    }
+    validatePortInput(inputEl, statusEl, saveBtnId, occupied);
+  };
+
+  inputEl.oninput = () => {
+    validatePortInput(inputEl, statusEl, saveBtnId, occupied);
+  };
+
+  validatePortInput(inputEl, statusEl, saveBtnId, occupied);
+}
+
+function validatePortInput(inputEl, statusEl, saveBtnId, occupied){
+  const saveBtn = saveBtnId ? $('#' + saveBtnId) : null;
+  const val = parseInt((inputEl.value || '').trim(), 10);
+  if(!val || isNaN(val)){
+    statusEl.className = 'port-status';
+    statusEl.textContent = inputEl.placeholder ? '' : '请输入 1~65535 端口';
+    if(saveBtn) saveBtn.disabled = false;
+    return;
+  }
+  if(val < 1 || val > 65535){
+    statusEl.className = 'port-status bad';
+    statusEl.textContent = '❌ 端口超出合法范围 (1 ~ 65535)';
+    if(saveBtn) saveBtn.disabled = true;
+    return;
+  }
+  if(occupied.has(val)){
+    statusEl.className = 'port-status bad';
+    statusEl.textContent = '❌ 端口 ' + val + ' 已被占用：' + occupied.get(val);
+    if(saveBtn) saveBtn.disabled = true;
+    return;
+  }
+  statusEl.className = 'port-status ok';
+  statusEl.textContent = '✅ 端口 ' + val + ' 可用';
+  if(saveBtn) saveBtn.disabled = false;
+}
+
+function getPrimaryInboundPort(){
+  const allIb = [];
+  (view.direct || []).forEach(i => allIb.push(i));
+  (view.exits || []).forEach(e => (e.inbounds || []).forEach(i => allIb.push(i)));
+  const found443 = allIb.find(i => i.port === 443);
+  if(found443) return 443;
+  if(allIb.length > 0) return allIb[0].port;
+  return 443;
+}
+
 // 自建模式下入站由 fanout 自己管，界面要提供新建入口；
 // 接管 3x-ui 时入站归面板管，这里只读不写。
 function isNative(){ return view.backend === 'native'; }
@@ -570,13 +800,17 @@ function renderExits(){
   list.innerHTML = view.exits.map(e => {
     const label = e.exit_ip || (e.status === 'starting' ? '连接中…' : '—');
     const chips = (e.inbounds || []).length
-      ? e.inbounds.map(i => '<button class="chip" data-detail="' + i.id + '" title="'
-          + esc((i.remark || i.protocol) + ' · ' + i.protocol + ' :' + i.port) + '">'
-          + esc(i.protocol) + ' :' + i.port + '</button>').join('')
+      ? e.inbounds.map(i =>
+          '<span class="chip-group">'
+          + '<button class="chip" data-detail="' + i.id + '" title="'
+          +   esc((i.remark || i.protocol) + ' · ' + i.protocol + ' :' + i.port) + '">'
+          +   esc(i.protocol) + ' :' + i.port + '</button>'
+          + '<button type="button" class="chip-unbind" data-unbind-tag="' + esc(i.tag)
+          +   '" data-unbind-port="' + i.port + '" title="解除绑定，恢复母机原生直连">✖</button>'
+          + '</span>').join('')
       : '<span class="chip none">无节点</span>';
     const err = e.status === 'failed' && e.err
       ? '<div class="errline" title="' + esc(e.err) + '">' + esc(e.err) + '</div>' : '';
-    // 国家码和全名一起显示是冗余的，只在两者确实不同时才补全名
     const place = e.country && e.country.toUpperCase() !== (e.region || '').toUpperCase()
       ? esc(e.region) + ' ' + esc(e.country) : esc(e.region || '—');
     return '<div class="exit">'
@@ -595,34 +829,91 @@ function renderExits(){
   }).join('');
 }
 
-// 停掉出口后它的入站会留在面板里。这些入站现在走直连，
-// 用户既看不出它们和 fanout 的关系，也没有清理入口，所以单独列出来。
 function renderOrphans(){
   const box = $('#orphans');
-  const list = view.direct || [];
-  if(!list.length){ box.innerHTML = ''; return; }
-  const hasUp = view.exits.some(e => e.status === 'up');
-  box.innerHTML = '<div class="orphan"><div class="top">'
-    + '<h3>未绑定出口的入站</h3><span class="count">' + list.length + ' 个，走直连</span>'
-    + '<span class="spacer"></span>'
-    + (isXCL() ? ''
-        : '<button data-delorphans="1" title="删除这些入站">' + ICON.trash + '清理</button>')
-    + '</div>'
-    + list.map(i =>
+  const directList = view.direct || [];
+  const exitsList = view.exits || [];
+
+  // 查找核心 443 入站（优先查找 443，直连或已挂载至出口均可捕获）
+  let coreNode = directList.find(i => i.port === 443);
+  let coreOwner = null;
+  if(!coreNode){
+    for(const exit of exitsList){
+      const found = (exit.inbounds || []).find(i => i.port === 443);
+      if(found){
+        coreNode = found;
+        coreOwner = exit;
+        break;
+      }
+    }
+  }
+
+  const others = directList.filter(i => i !== coreNode);
+  if(!coreNode && !others.length){
+    box.innerHTML = '';
+    return;
+  }
+
+  const hasUp = exitsList.some(e => e.status === 'up');
+
+  let html = '<div class="direct-section">'
+    + '<div class="direct-header">'
+    +   '<div class="dh-title">'
+    +     '<span style="font-size:16px">🌐</span>'
+    +     '<h3>' + (coreOwner ? '核心入站与直连管控' : '原生直连节点（母机公网出网）') + '</h3>'
+    +     '<span class="count">' + directList.length + ' 个直连</span>'
+    +   '</div>'
+    +   '<span class="dh-ip">母机公网 IP: <b>' + esc(view.public_ip || '—') + '</b></span>'
+    +   '<span class="spacer"></span>'
+    +   '<button type="button" class="btn-subtle" id="openExplorerFromDirect">'
+    +     '🌟 挑选优质住宅IP挂载'
+    +   '</button>'
+    + '</div>';
+
+  if(coreNode){
+    const coreStatus = coreOwner
+      ? '<span class="cic-status bound">🔀 已挂载出口: <b>' + esc(coreOwner.exit_ip || coreOwner.host) + '</b> (' + esc(coreOwner.region) + ')</span>'
+      : '<span class="cic-status direct">🌐 原生直连出网 (母机公网 IP: ' + esc(view.public_ip || '—') + ')</span>';
+
+    const coreActs = coreOwner
+      ? '<button class="chip" data-detail="' + coreNode.id + '" title="查看分享链接与详细设置">📋 详情/链接</button>'
+        + '<select class="obind" data-tag="' + esc(coreNode.tag) + '" data-port="' + coreNode.port + '">' + exitOptions(coreOwner.host) + '</select>'
+        + '<button type="button" class="btn-subtle" data-unbind-tag="' + esc(coreNode.tag) + '" data-unbind-port="' + coreNode.port + '" title="解除绑定，恢复母机原生直连" style="color:var(--bad)">✖ 解绑恢复直连</button>'
+      : '<button class="chip" data-detail="' + coreNode.id + '" title="查看分享链接与详细设置">📋 详情/链接</button>'
+        + (hasUp
+            ? '<select class="obind" data-tag="' + esc(coreNode.tag) + '" data-port="' + coreNode.port + '">' + exitOptions('') + '</select>'
+            : '<button class="primary btn-start-core-exit" data-port="' + coreNode.port + '">🚀 挑选住宅IP挂载</button>');
+
+    html += '<div class="core-inbound-card' + (coreOwner ? ' bound' : '') + '">'
+      + '<div class="cic-top">'
+      +   '<span class="cic-badge">👑 核心入站 :' + coreNode.port + '</span>'
+      +   '<span class="cic-title">' + esc(coreNode.remark || coreNode.protocol) + '</span>'
+      +   coreStatus
+      +   '<span class="spacer"></span>'
+      +   '<div class="cic-acts">' + coreActs + '</div>'
+      + '</div></div>';
+  }
+
+  if(others.length){
+    html += others.map(i =>
         '<div class="orow">'
         + '<button class="chip" data-detail="' + i.id + '" title="'
         +   esc((i.remark || i.protocol) + ' · ' + i.protocol + ' :' + i.port) + '">'
         +   esc(i.remark || i.protocol) + ' :' + i.port + '</button>'
+        + '<span class="count">🌐 直连</span>'
         + '<span class="spacer"></span>'
         + (hasUp
-            ? '<select class="obind" data-tag="' + esc(i.tag) + '">' + exitOptions('') + '</select>'
+            ? '<select class="obind" data-tag="' + esc(i.tag) + '" data-port="' + i.port + '">' + exitOptions('') + '</select>'
             : '<span class="dim">先开一个出口</span>')
         + (isXCL() ? ''
             : '<button class="icon danger" data-delone="' + i.id + '" data-name="'
               + esc((i.remark || i.protocol) + ' :' + i.port) + '" title="删除这个入站">'
               + ICON.trash + '</button>')
-        + '</div>').join('')
-    + '</div>';
+        + '</div>').join('');
+  }
+
+  html += '</div>';
+  box.innerHTML = html;
 }
 
 function renderJobs(jobs){
@@ -762,6 +1053,7 @@ document.addEventListener('click', e => {
     $('#nnhint').textContent = '';
     syncNodeForm();
     openModal('newnodebox');
+    renderPortRecommendations('nport-chips', 'nport-status', 'nport', 'ncreate', 0);
   }
 });
 
@@ -935,11 +1227,11 @@ async function openDetail(id){
 
 // 出口下拉：列出所有已连通的隧道，外加"直连"。绑定按 Xray 的 inboundTag 走。
 function exitOptions(currentHost){
-  const up = view.exits.filter(e => e.status === 'up');
-  return '<option value=""' + (currentHost ? '' : ' selected') + '>直连（不走隧道）</option>'
-    + up.map(e => '<option value="' + esc(e.host) + '"'
+  const exits = (view.exits || []).filter(e => e.status === 'up' || (currentHost && e.host === currentHost));
+  return '<option value=""' + (currentHost ? '' : ' selected') + '>🌐 直连（母机公网出网）</option>'
+    + exits.map(e => '<option value="' + esc(e.host) + '"'
         + (e.host === currentHost ? ' selected' : '') + '>'
-        + esc((e.exit_ip || e.host) + ' · ' + e.region) + '</option>').join('');
+        + esc((e.exit_ip || e.host) + ' · ' + e.region) + (e.status !== 'up' ? ' (' + (STATUS[e.status]||e.status) + ')' : '') + '</option>').join('');
 }
 
 function renderDetail(d){
@@ -961,10 +1253,16 @@ function renderDetail(d){
   }).join('');
 
   $('#dtitle').textContent = (d.remark || '节点') + '　:' + d.port;
-  // xray-cf-lite 的节点归它自己管，这里只留出口选择，改端口/备注/客户端都不给
   const editable = !isXCL();
-  $('#dbody').innerHTML = '<dl class="kv">'
-    + '<dt>出口</dt><dd><select id="dbind" data-tag="' + esc(d.tag) + '">'
+
+  const unbindBar = owner
+    ? '<div class="unbind-bar"><span class="ub-hint">已挂载出口: <b>' + esc(owner.exit_ip || owner.host) + '</b> (' + esc(owner.region) + ')</span>'
+      + '<button type="button" class="btn-unbind" id="dquick-unbind" data-tag="' + esc(d.tag) + '" data-port="' + d.port + '">🌐 一键解绑（恢复母机直连）</button></div>'
+    : '<div class="direct-bar">🌐 当前处于母机原生直连出网 (母机公网 IP: <b>' + esc(view.public_ip || '—') + '</b>)</div>';
+
+  $('#dbody').innerHTML = unbindBar
+    + '<dl class="kv">'
+    + '<dt>出口</dt><dd><select id="dbind" data-tag="' + esc(d.tag) + '" data-port="' + d.port + '">'
     +   exitOptions(owner ? owner.host : '') + '</select></dd>'
     + '<dt>协议</dt><dd>' + esc(d.protocol) + '　' + esc(d.network || '')
     +   (d.tls && d.tls !== 'none' ? '　' + esc(d.tls) : '') + '</dd>'
@@ -975,6 +1273,11 @@ function renderDetail(d){
     +     '<input id="dremark" type="text" value="' + esc(d.remark || '') + '"></label>'
     +   '<label class="ef"><span>端口</span>'
     +     '<input id="dport" type="text" inputmode="numeric" value="' + d.port + '"></label>'
+    +   '<div class="port-recom-wrap" style="width:100%">'
+    +     '<div class="port-recom-title">推荐常用端口（点击填入）：</div>'
+    +     '<div class="port-chips" id="dport-chips"></div>'
+    +     '<div class="port-status" id="dport-status"></div>'
+    +   '</div>'
     +   '<label class="chk"><input type="checkbox" id="denable"'
     +     (d.enable === false ? '' : ' checked') + '> 启用</label>'
     +   '<span class="spacer"></span>'
@@ -985,18 +1288,24 @@ function renderDetail(d){
     +   '<button id="dcadd">' + ICON.plus + '添加</button></div>'
     + (clients || '<div class="empty">没有客户端</div>'))
     : '<div class="hint">这个节点由 xray-cf-lite 管，端口、UUID 和分享链接都去它那边改。这里只决定它走哪条出口。</div>');
+
+  if(editable){
+    renderPortRecommendations('dport-chips', 'dport-status', 'dport', 'dsave', d.port);
+  }
 }
 
 // 未绑定区的出口下拉，选中即绑
 document.addEventListener('change', async e => {
   const sel = e.target.closest('.obind');
-  if(!sel || !sel.value) return;
+  if(!sel) return;
   sel.disabled = true;
+  const host = sel.value || 'direct';
   try{
     await api('/api/xui/bind?tag=' + encodeURIComponent(sel.dataset.tag)
-      + '&host=' + encodeURIComponent(sel.value), {method:'POST'});
-    toast('已绑定');
-    poll();
+      + '&port=' + encodeURIComponent(sel.dataset.port || '')
+      + '&host=' + encodeURIComponent(host), {method:'POST'});
+    toast(sel.value ? '已绑定出口' : '已恢复母机原生直连');
+    await poll();
   }catch(err){ toast(err.message, true); sel.disabled = false; }
 });
 
@@ -1005,16 +1314,126 @@ document.addEventListener('change', async e => {
   const sel = e.target.closest('#dbind');
   if(!sel) return;
   sel.disabled = true;
+  const host = sel.value || 'direct';
   try{
     await api('/api/xui/bind?tag=' + encodeURIComponent(sel.dataset.tag)
-      + '&host=' + encodeURIComponent(sel.value), {method:'POST'});
-    toast(sel.value ? '已绑定' : '已解绑');
-    poll();
+      + '&port=' + encodeURIComponent(sel.dataset.port || '')
+      + '&host=' + encodeURIComponent(host), {method:'POST'});
+    toast(sel.value ? '已绑定出口' : '已解绑（恢复母机原生直连）');
+    await poll();
+    if(curDetail) await openDetail(curDetail.id);
   }catch(err){ toast(err.message, true); }
   sel.disabled = false;
 });
 
 document.addEventListener('click', async e => {
+  // 一键解绑恢复母机直连 (详情弹窗)
+  const ub = e.target.closest('#dquick-unbind');
+  if(ub){
+    ub.disabled = true;
+    try{
+      await api('/api/xui/bind?tag=' + encodeURIComponent(ub.dataset.tag)
+        + '&port=' + encodeURIComponent(ub.dataset.port || '')
+        + '&host=direct', {method:'POST'});
+      toast('已解除绑定，恢复母机原生直连');
+      await poll();
+      if(curDetail) await openDetail(curDetail.id);
+    }catch(err){ toast(err.message, true); ub.disabled = false; }
+    return;
+  }
+
+  // 快速解绑按钮 (出口卡片上的入站胶囊)
+  const unbindBtn = e.target.closest('[data-unbind-tag]');
+  if(unbindBtn){
+    e.stopPropagation();
+    unbindBtn.disabled = true;
+    const tag = unbindBtn.dataset.unbindTag;
+    const port = unbindBtn.dataset.unbindPort;
+    try{
+      await api('/api/xui/bind?tag=' + encodeURIComponent(tag)
+        + '&port=' + encodeURIComponent(port || '')
+        + '&host=direct', {method:'POST'});
+      toast('已解除绑定，恢复母机原生直连');
+      await poll();
+      if(curDetail && $('#detail').classList.contains('open')) await openDetail(curDetail.id);
+    }catch(err){
+      toast(err.message, true);
+      unbindBtn.disabled = false;
+    }
+    return;
+  }
+
+  // 打开全节点大厅
+  if(e.target.closest('#openExplorerBtn') || e.target.closest('#openExplorerBtn2') || e.target.closest('#openExplorerFromDirect') || e.target.closest('.btn-start-core-exit')){
+    openNodeExplorer();
+    return;
+  }
+
+  // 大厅中开启出口
+  const sh = e.target.closest('[data-start-host]');
+  if(sh){
+    sh.disabled = true;
+    const host = sh.dataset.startHost;
+    try{
+      await api('/api/nodes/start?host=' + encodeURIComponent(host), {method:'POST'});
+      toast('正在开启出口隧道...');
+      closeModal('nodeExplorer');
+      poll();
+    }catch(err){
+      toast(err.message, true);
+      sh.disabled = false;
+    }
+    return;
+  }
+
+  // 大厅中挂载到 443
+  const mh = e.target.closest('[data-mount-host]');
+  if(mh){
+    mh.disabled = true;
+    const host = mh.dataset.mountHost;
+    const port = mh.dataset.mountPort || '443';
+    try{
+      await api('/api/nodes/start?host=' + encodeURIComponent(host) + '&bind_port=' + encodeURIComponent(port), {method:'POST'});
+      toast('正在启动住宅节点并挂载到 :' + port + ' ...');
+      closeModal('nodeExplorer');
+      poll();
+    }catch(err){
+      toast(err.message, true);
+      mh.disabled = false;
+    }
+    return;
+  }
+
+  // 大厅排序切换
+  const sbtn = e.target.closest('.nex-sort-btn');
+  if(sbtn){
+    document.querySelectorAll('.nex-sort-btn').forEach(b => b.classList.remove('active'));
+    sbtn.classList.add('active');
+    nexSort = sbtn.dataset.sort;
+    loadNodeExplorer();
+    return;
+  }
+
+  // 大厅类型过滤切换
+  const tchip = e.target.closest('.nex-filter-chip[data-type]');
+  if(tchip){
+    document.querySelectorAll('.nex-filter-chip[data-type]').forEach(b => b.classList.remove('active'));
+    tchip.classList.add('active');
+    nexType = tchip.dataset.type;
+    loadNodeExplorer();
+    return;
+  }
+
+  // 大厅地区过滤切换
+  const rchip = e.target.closest('.nex-filter-chip[data-nreg]');
+  if(rchip){
+    document.querySelectorAll('.nex-filter-chip[data-nreg]').forEach(b => b.classList.remove('active'));
+    rchip.classList.add('active');
+    nexRegion = rchip.dataset.nreg;
+    loadNodeExplorer();
+    return;
+  }
+
   const link = e.target.closest('[data-detail]');
   if(link) return openDetail(link.dataset.detail);
 
@@ -1088,6 +1507,124 @@ document.addEventListener('click', async e => {
     }catch(err){ toast(err.message, true); dd.disabled = false; }
   }
 });
+
+// Node Explorer 控制器
+let nexSort = 'quality';
+let nexRegion = '';
+let nexType = '';
+let nexNodes = [];
+let nexLoading = false;
+
+async function openNodeExplorer(){
+  openModal('nodeExplorer');
+  renderExplorerRegions();
+  loadNodeExplorer();
+}
+
+let nexKwTimer;
+document.addEventListener('input', e => {
+  if(e.target && e.target.id === 'nex-kw'){
+    clearTimeout(nexKwTimer);
+    nexKwTimer = setTimeout(() => {
+      loadNodeExplorer();
+    }, 250);
+  }
+});
+
+async function loadNodeExplorer(){
+  const listEl = $('#nex-list');
+  const countEl = $('#nex-count');
+  listEl.innerHTML = '<div class="empty">正在加载全部节点并评估 IP 纯净度画像…</div>';
+  nexLoading = true;
+  try{
+    const q = new URLSearchParams({
+      sort: nexSort,
+    });
+    if(nexRegion) q.set('region', nexRegion);
+    if(nexType) q.set('type', nexType);
+    const kw = ($('#nex-kw') ? $('#nex-kw').value : '').trim();
+    if(kw) q.set('kw', kw);
+
+    const res = await api('/api/nodes?' + q.toString());
+    nexNodes = res.nodes || [];
+    countEl.textContent = '共 ' + nexNodes.length + ' 个节点';
+    renderNodeExplorerList(nexNodes);
+  }catch(err){
+    listEl.innerHTML = '<div class="empty">加载节点失败: ' + esc(err.message) + '</div>';
+    countEl.textContent = '加载失败';
+  }
+  nexLoading = false;
+}
+
+function renderExplorerRegions(){
+  const regBox = $('#nex-regions');
+  if(!regBox || regBox.children.length > 0) return;
+  const commonRegions = [
+    {code:'', name:'全部地区'},
+    {code:'JP', name:'🇯🇵 日本'},
+    {code:'US', name:'🇺🇸 美国'},
+    {code:'KR', name:'🇰🇷 韩国'},
+    {code:'TW', name:'🇹🇼 台湾'},
+    {code:'HK', name:'🇭🇰 香港'},
+    {code:'SG', name:'🇸🇬 新加坡'},
+    {code:'GB', name:'🇬🇧 英国'},
+    {code:'DE', name:'🇩🇪 德国'},
+  ];
+  regBox.innerHTML = commonRegions.map(r =>
+    '<button type="button" class="nex-filter-chip ' + (nexRegion === r.code ? 'active' : '') + '" data-nreg="' + r.code + '">'
+    + esc(r.name) + '</button>'
+  ).join('');
+}
+
+function renderNodeExplorerList(nodes){
+  const listEl = $('#nex-list');
+  if(!nodes || !nodes.length){
+    listEl.innerHTML = '<div class="empty">未找到符合条件的节点</div>';
+    return;
+  }
+  const primPort = getPrimaryInboundPort();
+
+  listEl.innerHTML = nodes.map(n => {
+    const q = n.quality || {};
+    let qBadgeClass = 'dc';
+    if(q.type === 'residential') qBadgeClass = 'res';
+    else if(q.type === 'mobile') qBadgeClass = 'mob';
+
+    const ispText = esc(q.isp || q.org || n.hostname);
+    const asnText = q.asn ? ' · ' + esc(q.asn) : '';
+    const flag = flagEmoji(n.country_code);
+
+    const actBtns = n.running
+      ? '<span class="tag-running">🟢 运行中 (槽位 ' + n.slot + ')</span>'
+        + '<button type="button" class="btn-mount-443" data-mount-host="' + esc(n.hostname) + '" data-mount-port="' + primPort + '" title="将已运行的出口挂载到 :' + primPort + ' 节点">🔗 挂载到 ' + primPort + '</button>'
+      : '<button type="button" class="btn-start-exit" data-start-host="' + esc(n.hostname) + '">🚀 开启出口</button>'
+        + '<button type="button" class="btn-mount-443" data-mount-host="' + esc(n.hostname) + '" data-mount-port="' + primPort + '" title="开启此出口并立刻将 :' + primPort + ' 节点挂载至此">🔗 挂载到 ' + primPort + '</button>';
+
+    return '<div class="ncard">'
+      + '<div class="ncard-flag">' + flag + '</div>'
+      + '<div class="ncard-info">'
+      +   '<div class="ncard-title-row">'
+      +     '<span class="ncard-host">' + esc(n.country || n.country_code) + ' · ' + esc(n.hostname) + '</span>'
+      +     '<span class="ncard-ip">' + esc(n.ip) + '</span>'
+      +     '<span class="qbadge ' + qBadgeClass + '">' + esc(q.type_label || '节点') + ' · ' + (q.score || 0) + '分</span>'
+      +   '</div>'
+      +   '<div class="ncard-meta-row">'
+      +     '<span>🏢 ' + ispText + asnText + '</span>'
+      +     '<span>⚡ ' + n.speed_mbps.toFixed(1) + ' Mbps</span>'
+      +     '<span>📶 ' + n.ping + ' ms</span>'
+      +     '<span>👥 ' + n.sessions + ' 会话</span>'
+      +   '</div>'
+      + '</div>'
+      + '<div class="ncard-acts">' + actBtns + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function flagEmoji(cc){
+  if(!cc || cc.length !== 2) return '🌐';
+  const codePoints = cc.toUpperCase().split('').map(c => 127397 + c.charCodeAt(0));
+  return String.fromCodePoint(...codePoints);
+}
 
 document.addEventListener('click', e => {
   const c = e.target.closest('[data-copy]');

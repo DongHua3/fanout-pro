@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -147,13 +148,16 @@ func (n *Native) InboundLinks(ids []int, publicHost string) ([]string, error) {
 }
 
 func (n *Native) Bind(inboundTag string, hostname string, tunnels []*Tunnel) error {
+	if hostname == "direct" || hostname == "none" {
+		hostname = ""
+	}
 	n.mu.Lock()
 	defer n.mu.Unlock()
 
 	var target *Tunnel
 	if hostname != "" {
 		for _, t := range tunnels {
-			if t.Node.HostName == hostname {
+			if t.Node.HostName == hostname || sanitizeTag(t.Node.HostName) == sanitizeTag(hostname) {
 				target = t
 				break
 			}
@@ -168,7 +172,10 @@ func (n *Native) Bind(inboundTag string, hostname string, tunnels []*Tunnel) err
 
 	var found *nativeInbound
 	for _, ib := range n.store.Inbounds {
-		if ib.tag() == inboundTag {
+		if ib.tag() == inboundTag ||
+			fmt.Sprintf("%d", ib.Port) == inboundTag ||
+			fmt.Sprintf("inbound-%d", ib.Port) == inboundTag ||
+			strconv.Itoa(ib.ID) == inboundTag {
 			found = ib
 			break
 		}

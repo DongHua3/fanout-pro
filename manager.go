@@ -108,6 +108,27 @@ func (m *Manager) Start(node Node) (*Tunnel, error) {
 	return t, nil
 }
 
+// StartByHost 通过节点主机名直接启动出口。
+func (m *Manager) StartByHost(hostname string) (*Tunnel, error) {
+	m.mu.RLock()
+	var target *Node
+	for _, n := range m.nodes {
+		if n.HostName == hostname || n.IP == hostname || sanitizeTag(n.HostName) == sanitizeTag(hostname) {
+			cp := n
+			target = &cp
+			break
+		}
+	}
+	m.mu.RUnlock()
+	if target == nil {
+		return nil, fmt.Errorf("未找到主机名为 %s 的节点", hostname)
+	}
+	if m.nodeInUse(target.HostName, 0) {
+		return nil, fmt.Errorf("节点 %s 已在运行中", hostname)
+	}
+	return m.Start(*target)
+}
+
 // bringUp 把一条隧道拉起来。
 //
 // notify 决定成功后是否立刻重建后端配置。换节点重连时要传 false：

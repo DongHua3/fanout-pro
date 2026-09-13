@@ -271,3 +271,29 @@ func TestConfigurePanelReadsSavedMode(t *testing.T) {
 		t.Fatalf("清空后应回到自动探测，实际 %q", got)
 	}
 }
+
+func TestXCLBindPortTolerance(t *testing.T) {
+	x := xclFixture(t)
+	tunnels := []*Tunnel{xclTunnel("jp-01", 1, 20001)}
+
+	// 1. 通过端口 "10001" 绑定到 jp-01
+	if err := x.Bind("10001", "jp-01", tunnels); err != nil {
+		t.Fatalf("通过端口 10001 绑定失败: %v", err)
+	}
+
+	cfg := readCfg(t, x)
+	bound := x.boundInbounds(cfg)
+	if bound["vless-ws"] != "jp-01" {
+		t.Fatalf("vless-ws 应绑到 jp-01，实际 %v", bound)
+	}
+
+	// 2. 通过 "direct" 语义解绑
+	if err := x.Bind("10001", "direct", tunnels); err != nil {
+		t.Fatalf("通过 direct 解绑失败: %v", err)
+	}
+	cfg = readCfg(t, x)
+	bound = x.boundInbounds(cfg)
+	if bound["vless-ws"] != "" {
+		t.Fatalf("解绑后 vless-ws 不应有绑定，实际 %v", bound)
+	}
+}

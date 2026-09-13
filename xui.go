@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -391,13 +392,49 @@ func (x *XUI) Inbounds(live map[string]bool) ([]Inbound, error) {
 		// keep a "-tcp" tag for WebSocket inbounds, so reconstruction produces
 		// a routing rule that can never match the running Xray inbound.
 		tag := resolvedInboundTag(r.Tag, r.Port, r.Stream)
+		boundHost := findBoundHost(bound, tag, r.Tag, r.Port)
 		out = append(out, Inbound{
 			ID: r.ID, Port: r.Port, Protocol: r.Protocol,
 			Remark: r.Remark, Enable: r.Enable,
-			Tag: tag, BoundTo: bound[tag], BoundUp: live[bound[tag]],
+			Tag: tag, BoundTo: boundHost, BoundUp: live[boundHost],
 		})
 	}
 	return out, nil
+}
+
+// findBoundHost 容差查询入站的绑定出口，按权威标签、API标签、端口别名逐级匹配。
+func findBoundHost(bound map[string]string, tag string, apiTag string, port int) string {
+	if h, ok := bound[tag]; ok && h != "" {
+		return h
+	}
+	if apiTag != "" {
+		if h, ok := bound[apiTag]; ok && h != "" {
+			return h
+		}
+	}
+	if port > 0 {
+		candidates := []string{
+			fmt.Sprintf("inbound-%d", port),
+			fmt.Sprintf("in-%d-tcp", port),
+			fmt.Sprintf("in-%d-ws", port),
+			fmt.Sprintf("in-%d-grpc", port),
+			fmt.Sprintf("in-%d-quic", port),
+			fmt.Sprintf("in-%d-http", port),
+			fmt.Sprintf("%d", port),
+		}
+		for _, c := range candidates {
+			if h, ok := bound[c]; ok && h != "" {
+				return h
+			}
+		}
+		suffix := fmt.Sprintf("-%d", port)
+		for k, h := range bound {
+			if strings.HasSuffix(k, suffix) && h != "" {
+				return h
+			}
+		}
+	}
+	return ""
 }
 
 // inboundTag 复原 3x-ui 给入站生成的 Xray tag，格式是 in-<端口>-<网络>。
@@ -504,14 +541,31 @@ func toStringSlice(v any) []string {
 	return nil
 }
 
-// Bind 把某个入站的流量导向指定隧道。slot 传 0 表示解绑，恢复直连。
+var rePortInTag = regexp.MustCompile(`(?:inbound-|in-)?(\d{2,5})`)
+
+func extractPortFromTag(tag string) int {
+	m := rePortInTag.FindStringSubmatch(tag)
+	if len(m) >= 2 {
+		p, _ := strconv.Atoi(m[1])
+		if p > 0 && p <= 65535 {
+			return p
+		}
+	}
+	return 0
+}
+
+// Bind 把某个入站的流量导向指定隧道。hostname 为空串、"direct" 或 "none" 表示解绑，彻底恢复直连。
 //
 // 只动 fanout- 前缀的出站与规则，用户手工配置的条目原样保留。
 func (x *XUI) Bind(inboundTag string, hostname string, tunnels []*Tunnel) error {
+	if hostname == "direct" || hostname == "none" {
+		hostname = ""
+	}
+
 	var target *Tunnel
 	if hostname != "" {
 		for _, t := range tunnels {
-			if t.Node.HostName == hostname {
+			if t.Node.HostName == hostname || sanitizeTag(t.Node.HostName) == sanitizeTag(hostname) {
 				target = t
 				break
 			}
@@ -528,15 +582,47 @@ func (x *XUI) Bind(inboundTag string, hostname string, tunnels []*Tunnel) error 
 	for _, t := range tunnels {
 		if t.Status == "up" {
 			live[sanitizeTag(t.Node.HostName)] = true
+			live[t.Node.HostName] = true
 		}
 	}
-	current, err := x.Inbounds(live)
-	if err != nil {
-		return err
-	}
-	knownTags := map[string]bool{}
+	current, _ := x.Inbounds(live)
+
+	// 收集目标入站的所有可能别名（Tag、inbound-<port>、in-<port>-*、纯端口号等）
+	targetAliases := map[string]bool{inboundTag: true}
+	var targetPort int
+	canonicalTag := inboundTag
+
 	for _, ib := range current {
-		knownTags[ib.Tag] = true
+		if ib.Tag == inboundTag ||
+			fmt.Sprintf("%d", ib.Port) == inboundTag ||
+			fmt.Sprintf("inbound-%d", ib.Port) == inboundTag ||
+			fmt.Sprintf("in-%d-tcp", ib.Port) == inboundTag ||
+			fmt.Sprintf("in-%d-ws", ib.Port) == inboundTag ||
+			strconv.Itoa(ib.ID) == inboundTag {
+			targetPort = ib.Port
+			if ib.Tag != "" {
+				canonicalTag = ib.Tag
+				targetAliases[ib.Tag] = true
+			}
+			break
+		}
+	}
+
+	if targetPort == 0 {
+		targetPort = extractPortFromTag(inboundTag)
+	}
+
+	if targetPort > 0 {
+		targetAliases[fmt.Sprintf("%d", targetPort)] = true
+		targetAliases[fmt.Sprintf("inbound-%d", targetPort)] = true
+		targetAliases[fmt.Sprintf("in-%d-tcp", targetPort)] = true
+		targetAliases[fmt.Sprintf("in-%d-ws", targetPort)] = true
+		targetAliases[fmt.Sprintf("in-%d-grpc", targetPort)] = true
+		targetAliases[fmt.Sprintf("in-%d-quic", targetPort)] = true
+		targetAliases[fmt.Sprintf("in-%d-http", targetPort)] = true
+		if canonicalTag == "" || canonicalTag == strconv.Itoa(targetPort) {
+			canonicalTag = fmt.Sprintf("inbound-%d", targetPort)
+		}
 	}
 
 	setting, testURL, err := x.loadXray()
@@ -552,7 +638,7 @@ func (x *XUI) Bind(inboundTag string, hostname string, tunnels []*Tunnel) error 
 	}
 	rules, _ := routing["rules"].([]any)
 
-	// 先摘掉这个入站现有的 fanout 绑定，再按需要重新加一条
+	// 先摘掉这个入站现有的 fanout 绑定（多别名与端口容差清理）
 	cleaned := make([]any, 0, len(rules)+1)
 	for _, r := range rules {
 		m, ok := r.(map[string]any)
@@ -565,10 +651,18 @@ func (x *XUI) Bind(inboundTag string, hostname string, tunnels []*Tunnel) error 
 			cleaned = append(cleaned, r)
 			continue
 		}
-		// 顺便丢掉不再存在的入站标签（如换过端口后残留的旧规则）
 		remain := []any{}
 		for _, it := range toStringSlice(m["inboundTag"]) {
-			if it != inboundTag && knownTags[it] {
+			isTarget := targetAliases[it]
+			if !isTarget && targetPort > 0 {
+				if it == fmt.Sprintf("%d", targetPort) ||
+					it == fmt.Sprintf("inbound-%d", targetPort) ||
+					strings.HasPrefix(it, fmt.Sprintf("in-%d-", targetPort)) ||
+					strings.HasSuffix(it, fmt.Sprintf("-%d", targetPort)) {
+					isTarget = true
+				}
+			}
+			if !isTarget {
 				remain = append(remain, it)
 			}
 		}
@@ -578,10 +672,29 @@ func (x *XUI) Bind(inboundTag string, hostname string, tunnels []*Tunnel) error 
 		}
 	}
 
+	// 若指定了目标出口，添加规范的路由规则；若为解绑（target==nil），不加任何 fanout 规则，直接回落直连
 	if target != nil {
+		ruleTags := []any{canonicalTag}
+		addedTag := map[string]bool{canonicalTag: true}
+		if targetPort > 0 {
+			portTags := []string{
+				fmt.Sprintf("inbound-%d", targetPort),
+				fmt.Sprintf("in-%d-tcp", targetPort),
+				fmt.Sprintf("in-%d-ws", targetPort),
+				fmt.Sprintf("in-%d-grpc", targetPort),
+				fmt.Sprintf("in-%d-quic", targetPort),
+				fmt.Sprintf("in-%d-http", targetPort),
+			}
+			for _, pt := range portTags {
+				if !addedTag[pt] {
+					addedTag[pt] = true
+					ruleTags = append(ruleTags, pt)
+				}
+			}
+		}
 		cleaned = append(cleaned, map[string]any{
 			"type":        "field",
-			"inboundTag":  []any{inboundTag},
+			"inboundTag":  ruleTags,
 			"outboundTag": tunnelTag(target),
 		})
 	}
@@ -1146,6 +1259,13 @@ func (x *XUI) DeleteInbounds(ids []int, tunnels []*Tunnel) error {
 	alive := map[string]bool{}
 	for _, ib := range remain {
 		alive[ib.Tag] = true
+		if ib.Port > 0 {
+			alive[fmt.Sprintf("inbound-%d", ib.Port)] = true
+			alive[fmt.Sprintf("in-%d-tcp", ib.Port)] = true
+			alive[fmt.Sprintf("in-%d-ws", ib.Port)] = true
+			alive[fmt.Sprintf("in-%d-grpc", ib.Port)] = true
+			alive[fmt.Sprintf("%d", ib.Port)] = true
+		}
 	}
 
 	routing, _ := setting["routing"].(map[string]any)
@@ -1191,7 +1311,7 @@ func (x *XUI) Rebind(oldHost string, target *Tunnel, tunnels []*Tunnel) error {
 	oldTag := sanitizeTag(oldHost)
 	newLabel := exitLabel(target)
 	for _, ib := range list {
-		if ib.BoundTo != oldTag {
+		if ib.BoundTo != oldTag && ib.BoundTo != oldHost && sanitizeTag(ib.BoundTo) != oldTag {
 			continue
 		}
 		if err := x.Bind(ib.Tag, target.Node.HostName, tunnels); err != nil {

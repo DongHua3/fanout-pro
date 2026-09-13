@@ -9,9 +9,11 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
 
 // version 由构建时通过 -ldflags 注入。
@@ -88,6 +90,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handleIndex)
 	mux.HandleFunc("/api/nodes", apiNodes(mgr))
+	mux.HandleFunc("/api/nodes/start", apiNodesStart(mgr))
 	mux.HandleFunc("/api/tunnels", apiTunnels(mgr))
 	mux.HandleFunc("/api/start", apiStart(mgr))
 	mux.HandleFunc("/api/stop", apiStop(mgr))
@@ -160,16 +163,225 @@ func writeJSON(w http.ResponseWriter, code int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
+type NodeWithQuality struct {
+	Node
+	Quality QualityInfo `json:"quality"`
+	Running bool        `json:"running"`
+	Slot    int         `json:"slot,omitempty"`
+}
+
 func apiNodes(m *Manager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		nodes, fetched := m.Nodes()
-		if len(nodes) > 200 {
-			nodes = nodes[:200]
+
+		activeHosts := map[string]int{}
+		for _, t := range m.Tunnels() {
+			activeHosts[t.Node.HostName] = t.Slot
+			activeHosts[sanitizeTag(t.Node.HostName)] = t.Slot
 		}
+
+		ips := make([]string, len(nodes))
+		for i, n := range nodes {
+			ips[i] = n.IP
+		}
+		qc := GetQualityCache(m.workDir)
+		qmap := qc.BatchEvaluate(ips)
+
+		regionFilter := strings.ToUpper(strings.TrimSpace(r.URL.Query().Get("region")))
+		typeFilter := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("type")))
+		kw := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("kw")))
+
+		list := make([]NodeWithQuality, 0, len(nodes))
+		for _, n := range nodes {
+			if regionFilter != "" && strings.ToUpper(n.CountryCode) != regionFilter {
+				continue
+			}
+
+			q, ok := qmap[n.IP]
+			if !ok {
+				q = fallbackQuality(n.IP)
+			}
+
+			if typeFilter != "" && strings.ToLower(q.Type) != typeFilter {
+				continue
+			}
+
+			if kw != "" {
+				text := strings.ToLower(fmt.Sprintf("%s %s %s %s %s %s %s",
+					n.HostName, n.IP, n.Country, n.CountryCode, q.ISP, q.Org, q.ASN))
+				if !strings.Contains(text, kw) {
+					continue
+				}
+			}
+
+			slot, running := activeHosts[n.HostName]
+			if !running {
+				slot, running = activeHosts[sanitizeTag(n.HostName)]
+			}
+
+			list = append(list, NodeWithQuality{
+				Node:    n,
+				Quality: q,
+				Running: running,
+				Slot:    slot,
+			})
+		}
+
+		sortBy := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("sort")))
+		switch sortBy {
+		case "speed":
+			sort.Slice(list, func(i, j int) bool {
+				if list[i].SpeedMbps != list[j].SpeedMbps {
+					return list[i].SpeedMbps > list[j].SpeedMbps
+				}
+				return list[i].Quality.Score > list[j].Quality.Score
+			})
+		case "ping":
+			sort.Slice(list, func(i, j int) bool {
+				pi := list[i].Ping
+				pj := list[j].Ping
+				if pi > 0 && pj > 0 {
+					if pi != pj {
+						return pi < pj
+					}
+					return list[i].SpeedMbps > list[j].SpeedMbps
+				}
+				if pi > 0 {
+					return true
+				}
+				if pj > 0 {
+					return false
+				}
+				return list[i].SpeedMbps > list[j].SpeedMbps
+			})
+		default: // "quality"
+			sort.Slice(list, func(i, j int) bool {
+				if list[i].Quality.Score != list[j].Quality.Score {
+					return list[i].Quality.Score > list[j].Quality.Score
+				}
+				if list[i].Quality.Type != list[j].Quality.Type {
+					if list[i].Quality.Type == "residential" {
+						return true
+					}
+					if list[j].Quality.Type == "residential" {
+						return false
+					}
+				}
+				if list[i].SpeedMbps != list[j].SpeedMbps {
+					return list[i].SpeedMbps > list[j].SpeedMbps
+				}
+				return list[i].Ping < list[j].Ping
+			})
+		}
+
+		if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+			if limit, err := strconv.Atoi(limitStr); err == nil && limit > 0 && limit < len(list) {
+				list = list[:limit]
+			}
+		}
+
 		writeJSON(w, http.StatusOK, map[string]any{
-			"nodes":   nodes,
+			"nodes":   list,
+			"total":   len(list),
 			"fetched": fetched,
 		})
+	}
+}
+
+// apiNodesStart 在节点大厅中根据主机名直接开启出口，并可选直接挂载指定入站。
+func apiNodesStart(m *Manager) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		host := r.URL.Query().Get("host")
+		bindTag := r.URL.Query().Get("bind_tag")
+		bindPort := r.URL.Query().Get("bind_port")
+
+		if r.Method == http.MethodPost && host == "" {
+			var body struct {
+				Host     string `json:"host"`
+				BindTag  string `json:"bind_tag"`
+				BindPort string `json:"bind_port"`
+			}
+			if json.NewDecoder(r.Body).Decode(&body) == nil {
+				host = body.Host
+				if body.BindTag != "" {
+					bindTag = body.BindTag
+				}
+				if body.BindPort != "" {
+					bindPort = body.BindPort
+				}
+			}
+		}
+
+		if host == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "缺少 host 参数"})
+			return
+		}
+
+		targetTag := bindTag
+		if targetTag == "" {
+			targetTag = bindPort
+		}
+
+		t, err := m.StartByHost(host)
+		if err != nil {
+			if strings.Contains(err.Error(), "已在运行中") && targetTag != "" {
+				var runningTunnel *Tunnel
+				for _, tun := range m.Tunnels() {
+					if tun.Node.HostName == host || tun.Node.IP == host || sanitizeTag(tun.Node.HostName) == sanitizeTag(host) {
+						runningTunnel = tun
+						break
+					}
+				}
+				if runningTunnel != nil {
+					if runningTunnel.Status == "up" {
+						if p, pErr := openPanel(); pErr == nil {
+							_ = p.Bind(targetTag, runningTunnel.Node.HostName, m.Tunnels())
+							invalidateInbounds()
+						}
+					} else {
+						go func(rt *Tunnel) {
+							for i := 0; i < 40; i++ {
+								time.Sleep(1 * time.Second)
+								if rt.Status == "up" {
+									if p, pErr := openPanel(); pErr == nil {
+										_ = p.Bind(targetTag, rt.Node.HostName, m.Tunnels())
+										invalidateInbounds()
+									}
+									break
+								}
+								if rt.Status == "failed" || rt.Status == "stopped" {
+									break
+								}
+							}
+						}(runningTunnel)
+					}
+					writeJSON(w, http.StatusOK, runningTunnel)
+					return
+				}
+			}
+			writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
+			return
+		}
+
+		if targetTag != "" {
+			go func() {
+				for i := 0; i < 40; i++ {
+					time.Sleep(1 * time.Second)
+					if t.Status == "up" {
+						if p, err := openPanel(); err == nil {
+							_ = p.Bind(targetTag, t.Node.HostName, m.Tunnels())
+							invalidateInbounds()
+						}
+						break
+					}
+					if t.Status == "failed" || t.Status == "stopped" {
+						break
+					}
+				}
+			}()
+		}
+
+		writeJSON(w, http.StatusOK, t)
 	}
 }
 
@@ -505,26 +717,66 @@ func liveHosts(m *Manager) map[string]bool {
 	return live
 }
 
-// apiXUIBind 把某个入站绑定到某条隧道，slot=0 表示解绑。
+// apiXUIBind 把某个入站绑定到某条出口，host 为空串或 "direct" 表示解绑恢复直连。
 func apiXUIBind(m *Manager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tag := r.URL.Query().Get("tag")
-		if tag == "" {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "缺少 tag 参数"})
+		id := r.URL.Query().Get("id")
+		port := r.URL.Query().Get("port")
+		host := r.URL.Query().Get("host")
+
+		if r.Method == http.MethodPost && tag == "" && id == "" && port == "" && host == "" {
+			var body struct {
+				Tag  string `json:"tag"`
+				ID   string `json:"id"`
+				Port string `json:"port"`
+				Host string `json:"host"`
+			}
+			if json.NewDecoder(r.Body).Decode(&body) == nil {
+				tag = body.Tag
+				id = body.ID
+				port = body.Port
+				host = body.Host
+			}
+		}
+
+		target := tag
+		if target == "" {
+			if id != "" {
+				target = id
+			} else if port != "" {
+				target = port
+			}
+		}
+		if target == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "缺少 tag/id/port 参数"})
 			return
 		}
-		host := r.URL.Query().Get("host")
+
+		if host == "direct" || host == "none" {
+			host = ""
+		}
+
 		x, err := openPanel()
 		if err != nil {
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
 			return
 		}
-		if err := x.Bind(tag, host, m.Tunnels()); err != nil {
+		if err := x.Bind(target, host, m.Tunnels()); err != nil {
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
 			return
 		}
 		invalidateInbounds()
-		writeJSON(w, http.StatusOK, map[string]string{"ok": "已更新"})
+
+		status := "bound"
+		if host == "" {
+			status = "direct"
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"ok":     true,
+			"status": status,
+			"host":   host,
+		})
 	}
 }
 

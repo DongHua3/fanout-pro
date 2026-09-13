@@ -105,6 +105,7 @@ func (m *Manager) ExitsOf() ExitsView {
 	byHost := map[string]int{}
 	for i, t := range tunnels {
 		byHost[sanitizeTag(t.Node.HostName)] = i
+		byHost[t.Node.HostName] = i
 		cred := t.credential()
 		view.Exits = append(view.Exits, Exit{
 			Slot: t.Slot, Port: t.Port, Host: t.Node.HostName,
@@ -125,9 +126,15 @@ func (m *Manager) ExitsOf() ExitsView {
 			ID: ib.ID, Port: ib.Port, Remark: ib.Remark,
 			Protocol: ib.Protocol, Enable: ib.Enable, Tag: ib.Tag,
 		}
-		if i, ok := byHost[ib.BoundTo]; ib.BoundTo != "" && ok {
-			view.Exits[i].Inbounds = append(view.Exits[i].Inbounds, row)
-			continue
+		if ib.BoundTo != "" {
+			if i, ok := byHost[ib.BoundTo]; ok {
+				view.Exits[i].Inbounds = append(view.Exits[i].Inbounds, row)
+				continue
+			}
+			if i, ok := byHost[sanitizeTag(ib.BoundTo)]; ok {
+				view.Exits[i].Inbounds = append(view.Exits[i].Inbounds, row)
+				continue
+			}
 		}
 		view.Direct = append(view.Direct, row)
 	}
