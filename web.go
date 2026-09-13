@@ -44,7 +44,7 @@ button.icon.danger:hover:not(:disabled){color:var(--bad);border-color:rgba(194,8
 svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8;
   stroke-linecap:round;stroke-linejoin:round;flex:none}
 main{padding:14px 16px 40px;max-width:1180px;margin:0 auto}
-.bar{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.bar{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
 .bar h2{font-size:12px;margin:0;font-weight:600;color:var(--dim)}
 .exit{border:1px solid var(--line);border-radius:6px;margin-bottom:8px;
   background:var(--panel);overflow:hidden}
@@ -248,9 +248,11 @@ textarea:focus{outline:none;border-color:var(--accent)}
 .sheet-wide{max-width:960px!important;width:95vw}
 .nex-controls{padding:10px 16px;border-bottom:1px solid var(--line);background:#13171e;display:flex;flex-direction:column;gap:8px}
 .nex-search-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.nex-search-box{display:flex;align-items:center;gap:6px;flex:1;min-width:260px;background:#0e1116;border:1px solid var(--line);border-radius:4px;padding:4px 8px}
+.nex-search-box{display:flex;align-items:center;gap:6px;flex:1;min-width:240px;background:#0e1116;border:1px solid var(--line);border-radius:4px;padding:4px 8px;position:relative}
 .nex-search-box input{border:none;background:transparent;padding:2px 0;width:100%;color:var(--text);font:inherit}
 .nex-search-box input:focus{outline:none}
+.btn-search-clear{background:transparent;border:0;color:var(--dim);cursor:pointer;padding:0 4px;font-size:12px;line-height:1}
+.btn-search-clear:hover{color:var(--text)}
 .nex-sort-group{display:flex;align-items:center;gap:6px}
 .sort-label{font-size:11px;color:var(--dim)}
 .nex-sort-btn{font-size:11px;padding:3px 8px;border-radius:3px;background:#181c23;border:1px solid var(--line);color:var(--dim);cursor:pointer}
@@ -260,7 +262,7 @@ textarea:focus{outline:none;border-color:var(--accent)}
 .nex-filter-chip.active{background:rgba(74,158,218,.2);border-color:var(--accent);color:var(--text);font-weight:600}
 .nex-list-wrap{max-height:60vh;overflow-y:auto;padding:12px 16px}
 .nex-list{display:flex;flex-direction:column;gap:8px}
-.ncard{display:grid;grid-template-columns:auto 1fr auto;gap:10px 14px;align-items:center;padding:10px 14px;background:#181c23;border:1px solid var(--line);border-radius:6px}
+.ncard{display:grid;grid-template-columns:auto 1fr auto;gap:10px 14px;align-items:center;padding:10px 14px;background:#181c23;border:1px solid var(--line);border-radius:6px;transition:border-color .15s}
 .ncard:hover{border-color:rgba(74,158,218,.4)}
 .ncard-flag{font-size:22px;line-height:1}
 .ncard-info{display:flex;flex-direction:column;gap:3px;overflow:hidden}
@@ -279,24 +281,109 @@ textarea:focus{outline:none;border-color:var(--accent)}
 .btn-mount-443:hover{opacity:.9}
 .tag-running{font-size:11px;padding:3px 8px;border-radius:3px;background:rgba(63,166,107,.15);color:var(--ok);border:1px solid rgba(63,166,107,.3)}
 .badge{background:var(--accent);color:#0b0e12;font-size:10px;font-weight:700;padding:1px 5px;border-radius:8px;margin-left:3px}
+
+/* 顶栏品牌与面板药丸 */
+.brand{display:flex;align-items:center;gap:6px}
+.brand h1{font-size:14px;font-weight:700;margin:0;letter-spacing:.3px;color:#fff}
+.badge-pro{font-size:9px;font-weight:800;padding:1px 5px;background:rgba(74,158,218,.15);color:var(--accent);border:1px solid rgba(74,158,218,.35);border-radius:4px;letter-spacing:.5px}
+.panel-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);padding:2px 8px;border-radius:12px;background:#101318;border:1px solid var(--line)}
+.panel-badge::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--ok);display:inline-block}
+
+/* 导出与订阅弹窗样式 */
+.sheet-export{width:min(780px,95vw)!important;max-height:88vh}
+.sub-card{background:#10141b;border:1px solid rgba(74,158,218,.35);border-radius:6px;padding:12px 14px;margin-bottom:14px}
+.sub-card-head{display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap}
+.sub-card-head strong{font-size:12px;color:var(--text)}
+.sub-badge{font-size:10px;padding:1px 6px;border-radius:3px;background:rgba(74,158,218,.15);color:var(--accent);font-weight:600}
+.sub-card-desc{font-size:11px;color:var(--dim);margin-bottom:8px;line-height:1.5}
+.sub-input-row{display:flex;align-items:center;gap:8px}
+.sub-input-row input{font-size:11px;flex:1;background:#090c10;border:1px solid var(--line);border-radius:4px;padding:6px 9px;color:var(--text)}
+.ex-nav-bar{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.ex-view-tabs{display:inline-flex;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:#0e1116}
+.ex-tab-btn{border:0;border-radius:0;background:transparent;padding:4px 10px;font-size:11px;color:var(--dim);cursor:pointer}
+.ex-tab-btn.active{background:var(--accent);color:#080b0f;font-weight:700}
+.ex-filters{display:inline-flex;gap:4px}
+.ex-filter-btn{font-size:11px;padding:2px 8px;border-radius:12px;background:#181c23;border:1px solid var(--line);color:var(--dim);cursor:pointer}
+.ex-filter-btn.active{background:rgba(74,158,218,.2);border-color:var(--accent);color:var(--text);font-weight:600}
+.ex-cards-list{display:flex;flex-direction:column;gap:8px;max-height:48vh;overflow-y:auto}
+.ex-card{display:flex;flex-direction:column;gap:6px;padding:10px 12px;background:#12161d;border:1px solid var(--line);border-radius:6px;transition:border-color .15s}
+.ex-card:hover{border-color:rgba(74,158,218,.35)}
+.ex-card-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ex-pill{font-size:10px;font-weight:700;padding:2px 7px;border-radius:3px;white-space:nowrap}
+.ex-pill.direct{background:rgba(63,166,107,.15);color:var(--ok);border:1px solid rgba(63,166,107,.35)}
+.ex-pill.exit{background:rgba(74,158,218,.15);color:var(--accent);border:1px solid rgba(74,158,218,.35)}
+.ex-card-info{display:flex;flex-direction:column;gap:4px;overflow:hidden}
+.ex-card-title{font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ex-card-link-preview{font-size:11px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:inherit;background:#090c10;border:1px solid var(--line);border-radius:4px;padding:4px 8px;flex:1}
+.ex-card-acts{display:flex;align-items:center;gap:8px;margin-top:2px}
+.ex-card-sublinks{display:flex;flex-direction:column;gap:5px;margin-top:4px}
+.ex-sublink-row{display:flex;align-items:center;gap:8px;background:#0d1117;padding:4px 8px;border-radius:4px;border:1px solid var(--line)}
+.ex-sublink-badge{font-size:10px;color:var(--accent);background:rgba(74,158,218,.12);padding:1px 5px;border-radius:3px;white-space:nowrap}
+.btn-copy-one{font-size:11px;padding:4px 10px;border-radius:4px;background:#1e242f;border:1px solid var(--line);color:var(--text);cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.btn-copy-one:hover{border-color:var(--accent);color:var(--accent)}
+
+/* SOCKS5 凭据弹窗增强 */
+.cred-preview-card{background:#10141b;border:1px solid var(--line);border-radius:6px;padding:12px 14px}
+.cred-preview-label{font-size:11px;color:var(--dim);margin-bottom:6px}
+.cred-preview-row{display:flex;align-items:center;gap:8px}
+.cred-fields-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cfg-item{background:#0a0d11;border:1px solid var(--line);border-radius:4px;padding:8px 10px}
+.cfg-item span{display:block;font-size:10px;color:var(--dim);margin-bottom:4px}
+.cfg-val-row{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.cfg-val-row code{font-size:12px;font-weight:600;color:var(--text);word-break:break-all}
+.btn-mini{font-size:10px;padding:1px 6px;border-radius:3px;background:#1b212b;border:1px solid var(--line);color:var(--dim);cursor:pointer;white-space:nowrap}
+.btn-mini:hover{color:var(--accent);border-color:var(--accent)}
+.route-note{font-size:11px;color:var(--dim);margin-top:12px;line-height:1.6;padding:8px 12px;background:#0d1015;border-radius:4px;border-left:3px solid var(--accent)}
+.route-note code{color:var(--accent)}
+
+@media(max-width:680px){
+  header{padding:8px 12px;gap:8px;flex-wrap:wrap}
+  .bar{flex-wrap:wrap;gap:8px}
+  .ncard{grid-template-columns:auto 1fr;grid-template-areas:"flag info" "acts acts";gap:8px 10px}
+  .ncard-host{word-break:break-all}
+  .ncard-flag{grid-area:flag}
+  .ncard-info{grid-area:info}
+  .ncard-acts{grid-area:acts;width:100%;justify-content:stretch;margin-top:4px}
+  .ncard-acts button,.ncard-acts .tag-running{flex:1;text-align:center;justify-content:center}
+  .nex-controls{padding:8px 10px}
+  .nex-search-row{flex-direction:column;align-items:stretch}
+  .nex-search-box{min-width:100%}
+  .nex-sort-group{justify-content:space-between;width:100%}
+  .nex-sort-btn{flex:1;text-align:center}
+  .cred-fields-grid{grid-template-columns:1fr}
+  .cred-preview-row{flex-direction:column;align-items:stretch}
+  .cred-preview-row button{width:100%}
+  .credrow{flex-direction:column;align-items:stretch}
+  .credrow .ef{width:100%}
+  .credrow .ef input{width:100%!important}
+  .credrow button{width:100%}
+  .sub-input-row{flex-direction:column;align-items:stretch}
+  .sub-input-row button{width:100%}
+  .ex-card-acts{flex-direction:column;align-items:stretch}
+  .btn-copy-one{width:100%;text-align:center;justify-content:center}
+  .ex-sublink-row{flex-wrap:wrap}
+}
 </style>
 </head>
 <body>
 <header>
-  <h1>fanout</h1>
-  <span class="count" id="panel"></span>
+  <div class="brand">
+    <h1>fanout</h1>
+    <span class="badge-pro">PRO</span>
+  </div>
+  <span class="panel-badge" id="panel"></span>
   <span class="spacer"></span>
   <button class="primary" id="openExplorerBtn" title="全节点大厅（质量/速度降序、自由挑选住宅节点）">
     <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
     🌟 节点大厅
   </button>
-  <button class="icon" id="settingsBtn" title="设置">
+  <button class="icon" id="settingsBtn" title="控制台设置">
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
   </button>
+  <button class="icon" id="logoutBtn" title="退出登录">
+    <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+  </button>
   <nav class="links">
-    <a href="https://t.me/+ft-zI76oovgwNmRh" target="_blank" rel="noopener">交流群</a>
-    <a href="https://youtube.com/@joeyblog" target="_blank" rel="noopener">油管</a>
-    <a href="https://joeyblog.net" target="_blank" rel="noopener">博客</a>
     <a href="https://github.com/DongHua3/fanout-pro" target="_blank" rel="noopener">GitHub</a>
   </nav>
 </header>
@@ -489,38 +576,62 @@ textarea:focus{outline:none;border-color:var(--accent)}
       </button>
     </div>
     <div class="body">
-      <div class="share" id="crurl"></div>
-      <div class="credrow">
+      <div class="cred-preview-card">
+        <div class="cred-preview-label">SOCKS5 完整连接 URL：</div>
+        <div class="cred-preview-row">
+          <div class="share" id="crurl" style="margin:0;flex:1"></div>
+          <button type="button" class="primary" id="crcopy" title="一键复制完整 SOCKS5 URL">复制 URL</button>
+        </div>
+        <div class="cred-fields-grid" style="margin-top:10px">
+          <div class="cfg-item">
+            <span>母机连接地址与端口</span>
+            <div class="cfg-val-row">
+              <code id="crhostport">—</code>
+              <button type="button" class="btn-mini" id="crcopyhost" title="复制 host:port">复制</button>
+            </div>
+          </div>
+          <div class="cfg-item">
+            <span>出口真实 IP (VPN Gate)</span>
+            <div class="cfg-val-row">
+              <code id="crexitip">—</code>
+              <button type="button" class="btn-mini" id="crcopyip" title="复制真实出口 IP">复制</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="credrow" style="margin-top:14px">
         <label class="ef"><span>用户名</span>
           <input id="cruser" type="text" spellcheck="false"></label>
         <label class="ef"><span>口令</span>
           <input id="crpass" type="text" spellcheck="false"></label>
-        <button id="crrand" title="随机生成一套">
+        <button type="button" id="crrand" title="随机生成一套无歧义凭据">
           <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
-          随机
+          随机生成
         </button>
       </div>
-      <div class="hint">改完立即生效，已连上的会话不断；用旧凭据的客户端要改配置。</div>
+      <div class="route-note">
+        💡 <b>网络转发路径</b>：客户端连接 <code>母机公网IP:端口</code> ➔ 经由 OpenVPN 隧道隔离网络 ➔ 由 <code>VPN Gate 出口节点</code> 发往目标网络。<br>
+        修改凭据后立即生效，已连上的活动会话不中断；新发起连接需使用新凭据。
+      </div>
     </div>
     <div class="foot">
-      <button id="crcopy">
-        <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-        复制地址
-      </button>
       <span class="spacer"></span>
       <button data-close="credbox">取消</button>
-      <button class="primary" id="crsave">保存</button>
+      <button class="primary" id="crsave">保存凭据</button>
     </div>
   </div>
 </div>
 
 <div class="modal" id="export">
-  <div class="sheet">
+  <div class="sheet sheet-export">
     <div class="head">
-      <h2>节点链接与客户端订阅</h2>
-      <span class="count" id="excount"></span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <h2>节点链接与客户端订阅</h2>
+        <span class="count" id="excount"></span>
+      </div>
       <span class="spacer"></span>
-      <button id="copyall">
+      <button id="copyall" title="复制所有分享链接">
         <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         全部复制
       </button>
@@ -529,20 +640,39 @@ textarea:focus{outline:none;border-color:var(--accent)}
       </button>
     </div>
     <div class="body">
-      <div style="margin-bottom:12px;padding:10px 12px;background:#0e1116;border:1px solid var(--line);border-radius:4px">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-          <span style="font-size:14px">📡</span>
-          <strong style="font-size:12px">客户端一键订阅链接（可直接添加至 V2RayN / Shadowrocket / Clash 等自动同步全部节点）：</strong>
+      <div class="sub-card">
+        <div class="sub-card-head">
+          <span style="font-size:15px">📡</span>
+          <strong>客户端一键聚合订阅源 (/sub)</strong>
+          <span class="sub-badge">免手动导入 · 自动同步</span>
         </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <input type="text" id="subUrlInput" readonly style="font-size:12px;flex:1;background:#181c23;border:1px solid var(--line);padding:5px 8px">
+        <div class="sub-card-desc">
+          支持 V2RayN、Shadowrocket、Clash、Sing-box 等客户端自动拉取母机直连与全部出口节点：
+        </div>
+        <div class="sub-input-row">
+          <input type="text" id="subUrlInput" readonly spellcheck="false">
           <button type="button" class="primary" id="copySubUrlBtn">复制订阅链接</button>
         </div>
       </div>
-      <div style="display:flex;align-items:center;margin-bottom:6px;gap:8px">
-        <span style="font-size:12px;color:var(--dim)">📋 明细节点分享链接列表（包含母机直连与所有出口节点）：</span>
+
+      <div class="ex-nav-bar">
+        <div class="ex-view-tabs">
+          <button type="button" class="ex-tab-btn active" id="exTabCards">📋 节点卡片明细</button>
+          <button type="button" class="ex-tab-btn" id="exTabText">📄 纯文本批量导入</button>
+        </div>
+        <span class="spacer"></span>
+        <div class="ex-filters" id="exFilters">
+          <button type="button" class="ex-filter-btn active" data-exfilter="all">全部</button>
+          <button type="button" class="ex-filter-btn" data-exfilter="direct">🌐 仅直连</button>
+          <button type="button" class="ex-filter-btn" data-exfilter="exit">🔀 仅出口</button>
+        </div>
       </div>
-      <textarea id="exbox" spellcheck="false" readonly style="min-height:220px"></textarea>
+
+      <div id="exCardsWrap" class="ex-cards-list"></div>
+
+      <div id="exTextWrap" style="display:none">
+        <textarea id="exbox" spellcheck="false" readonly style="min-height:220px"></textarea>
+      </div>
     </div>
   </div>
 </div>
@@ -589,6 +719,13 @@ textarea:focus{outline:none;border-color:var(--accent)}
         </div>
         <div class="updnotes" id="updNotes" hidden></div>
       </div>
+
+      <div class="updsec" style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:11px;color:var(--dim)">当前登录会话</span>
+        <button type="button" class="btn-subtle" id="settingsLogoutBtn" style="color:var(--bad)" title="退出当前登录会话">
+          🚪 退出登录
+        </button>
+      </div>
     </div>
     <div class="foot">
       <span class="spacer"></span>
@@ -615,6 +752,7 @@ textarea:focus{outline:none;border-color:var(--accent)}
         <div class="nex-search-box">
           <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
           <input type="text" id="nex-kw" placeholder="快速搜索国家、城市、IP、ISP 运营商、ASN...">
+          <button type="button" id="nex-kw-clear" class="btn-search-clear" style="display:none" title="清空搜索">✕</button>
         </div>
         <div class="nex-sort-group">
           <span class="sort-label">排序方式:</span>
@@ -1894,10 +2032,12 @@ function credHost(e){
 function openCred(slot){
   const e = view.exits.find(x => x.slot === slot);
   if(!e){ toast('这个出口不在了', true); return; }
-  curCred = {slot: slot, port: e.port, host: credHost(e)};
-  $('#crtitle').textContent = e.region + ' · :' + e.port;
+  curCred = {slot: slot, port: e.port, host: credHost(e), exit_ip: e.exit_ip || e.host};
+  $('#crtitle').textContent = (e.region || '—') + ' · :' + e.port;
   $('#cruser').value = e.socks_user || '';
   $('#crpass').value = e.socks_pass || '';
+  $('#crhostport').textContent = curCred.host + ':' + curCred.port;
+  $('#crexitip').textContent = (e.exit_ip || '—') + (e.country ? ' (' + e.country + ')' : '');
   refreshCredURL();
   openModal('credbox');
 }
@@ -1921,6 +2061,10 @@ $('#crrand').onclick = () => {
 };
 
 $('#crcopy').onclick = () => { copy($('#crurl').textContent); };
+const cpHostBtn = $('#crcopyhost');
+if(cpHostBtn) cpHostBtn.onclick = () => { if(curCred) copy(curCred.host + ':' + curCred.port); };
+const cpExitBtn = $('#crcopyip');
+if(cpExitBtn) cpExitBtn.onclick = () => { if(curCred && curCred.exit_ip) copy(curCred.exit_ip); };
 
 $('#crsave').onclick = async e => {
   if(!curCred) return;
@@ -1941,16 +2085,131 @@ $('#crsave').onclick = async e => {
   btn.disabled = false;
 };
 
-// ---- 导出 ----
+// ---- 导出与客户端订阅 ----
+let exExportData = null;
+let exActiveFilter = 'all';
+let exActiveTab = 'cards';
+
+function getFilteredExportData(){
+  if(!exExportData || !exExportData.items) return {items: [], links: []};
+  let items = exExportData.items;
+  if(exActiveFilter === 'direct'){
+    items = items.filter(it => it.is_direct);
+  } else if(exActiveFilter === 'exit'){
+    items = items.filter(it => !it.is_direct);
+  }
+  let links = [];
+  items.forEach(it => {
+    if(it.links && it.links.length) {
+      links.push(...it.links);
+    }
+  });
+  return {items, links};
+}
+
+function updateExportViews(){
+  const {items, links} = getFilteredExportData();
+  const countEl = $('#excount');
+  const boxEl = $('#exbox');
+  const wrap = $('#exCardsWrap');
+
+  if(boxEl) boxEl.value = links.join('\n');
+  if(countEl){
+    let filterLabel = '全部';
+    if(exActiveFilter === 'direct') filterLabel = '🌐 仅直连';
+    else if(exActiveFilter === 'exit') filterLabel = '🔀 仅出口';
+    countEl.textContent = links.length + ' 条 (' + filterLabel + ')';
+  }
+  if(!wrap) return;
+  if(!items.length){
+    wrap.innerHTML = '<div class="empty">该分类下没有可用节点</div>';
+    return;
+  }
+  wrap.innerHTML = items.map(it => {
+    const isDir = it.is_direct;
+    const badge = isDir
+      ? '<span class="ex-pill direct">🌐 原生直连</span>'
+      : '<span class="ex-pill exit">🔀 出口 ' + esc(it.exit_region || '—') + (it.exit_ip ? ' · ' + esc(it.exit_ip) : '') + '</span>';
+    const linksList = it.links || [];
+    let linksHtml = '';
+    if(!linksList.length){
+      linksHtml = '<div class="ex-card-link-preview">(暂无节点链接)</div>';
+    } else if(linksList.length === 1){
+      const link = linksList[0];
+      linksHtml = '<div style="display:flex;align-items:center;gap:8px">'
+        + '<div class="ex-card-link-preview" title="' + esc(link) + '">' + esc(link) + '</div>'
+        + '<button type="button" class="btn-copy-one" data-copy="' + esc(link) + '">📋 复制</button>'
+        + '</div>';
+    } else {
+      const copyAllCardLinks = linksList.join('\n');
+      linksHtml = '<div class="ex-card-sublinks">'
+        + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;flex-wrap:wrap">'
+        +   '<span style="font-size:11px;color:var(--dim)">共 ' + linksList.length + ' 个客户端凭据:</span>'
+        +   '<button type="button" class="btn-copy-one" data-copy="' + esc(copyAllCardLinks) + '">📋 复制全部 ' + linksList.length + ' 条链接</button>'
+        + '</div>'
+        + linksList.map((lnk, idx) => {
+            const client = (it.clients && it.clients[idx]) ? it.clients[idx] : null;
+            const label = client ? (client.email || ('凭据 #' + (idx + 1))) : ('凭据 #' + (idx + 1));
+            return '<div class="ex-sublink-row">'
+              + '<span class="ex-sublink-badge">' + esc(label) + '</span>'
+              + '<span class="ex-card-link-preview" title="' + esc(lnk) + '">' + esc(lnk) + '</span>'
+              + '<button type="button" class="btn-mini" data-copy="' + esc(lnk) + '">复制</button>'
+              + '</div>';
+          }).join('')
+        + '</div>';
+    }
+    return '<div class="ex-card">'
+      + '<div class="ex-card-top">'
+      +   badge
+      +   '<div class="ex-card-title">' + esc(it.remark || it.protocol) + ' · ' + esc(it.protocol) + ' :' + it.port + '</div>'
+      + '</div>'
+      + '<div class="ex-card-info">' + linksHtml + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function switchExTab(tab){
+  exActiveTab = tab;
+  const tabCards = $('#exTabCards');
+  const tabText = $('#exTabText');
+  const cardsWrap = $('#exCardsWrap');
+  const textWrap = $('#exTextWrap');
+  const filters = $('#exFilters');
+  if(tab === 'cards'){
+    if(tabCards) tabCards.classList.add('active');
+    if(tabText) tabText.classList.remove('active');
+    if(cardsWrap) cardsWrap.style.display = 'flex';
+    if(textWrap) textWrap.style.display = 'none';
+    if(filters) filters.style.display = 'inline-flex';
+  } else {
+    if(tabCards) tabCards.classList.remove('active');
+    if(tabText) tabText.classList.add('active');
+    if(cardsWrap) cardsWrap.style.display = 'none';
+    if(textWrap) textWrap.style.display = 'block';
+    if(filters) filters.style.display = 'none';
+  }
+}
+
+const tabCardsBtn = $('#exTabCards');
+if(tabCardsBtn) tabCardsBtn.onclick = () => switchExTab('cards');
+const tabTextBtn = $('#exTabText');
+if(tabTextBtn) tabTextBtn.onclick = () => switchExTab('text');
+
+document.querySelectorAll('[data-exfilter]').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('[data-exfilter]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    exActiveFilter = btn.dataset.exfilter;
+    updateExportViews();
+  };
+});
+
 $('#exportAll').onclick = async () => {
   const ids = [];
-  // 先加入母机直连节点
   (view.direct || []).forEach(i => ids.push(i.id));
-  // 再加入各个出口挂载的节点
   (view.exits || []).forEach(x => (x.inbounds || []).forEach(i => ids.push(i.id)));
   if(!ids.length){ toast('还没有节点可导出', true); return; }
 
-  // 构造标准客户端订阅 URL
   let bp = (location.pathname || '').replace(/\/+$/, '');
   let subUrl = location.origin + bp + '/sub';
   if(view.sub_token){
@@ -1961,16 +2220,35 @@ $('#exportAll').onclick = async () => {
 
   $('#exbox').value = '读取中…';
   $('#excount').textContent = '';
+  const cardsWrap = $('#exCardsWrap');
+  if(cardsWrap) cardsWrap.innerHTML = '<div class="empty">正在加载节点链接明细…</div>';
   openModal('export');
+  switchExTab('cards');
+
   try{
-    const d = await api('/api/xui/links');
-    $('#exbox').value = (d.links || []).join('\n');
-    $('#excount').textContent = (d.links || []).length + ' 条 (含母机直连与全部出口)';
-  }catch(err){ $('#exbox').value = '导出失败: ' + err.message; }
+    const d = await api('/api/xui/links?ids=' + ids.join(','));
+    exExportData = d;
+    updateExportViews();
+  }catch(err){
+    $('#exbox').value = '导出失败: ' + err.message;
+    if(cardsWrap) cardsWrap.innerHTML = '<div class="empty">导出失败: ' + esc(err.message) + '</div>';
+  }
 };
-$('#copyall').onclick = () => { const v = $('#exbox').value; if(v) copy(v); };
+$('#copyall').onclick = () => {
+  const v = $('#exbox').value;
+  if(v){
+    copy(v);
+    let label = '全部';
+    if(exActiveFilter === 'direct') label = '直连';
+    else if(exActiveFilter === 'exit') label = '出口';
+    toast('已复制 ' + label + ' 节点链接');
+  }
+};
 const copySubBtn = $('#copySubUrlBtn');
-if(copySubBtn) copySubBtn.onclick = () => { const v = $('#subUrlInput').value; if(v) copy(v); };
+if(copySubBtn) copySubBtn.onclick = () => {
+  const v = $('#subUrlInput').value;
+  if(v){ copy(v); toast('已复制客户端 Base64 订阅链接'); }
+};
 
 // ---- 设置：改密码 / 改路径 / 改端口 / 改本地监听 ----
 let curSettings = null;
@@ -2125,6 +2403,29 @@ $('#setSave').onclick = async e => {
   }catch(err){ toast(err.message, true); }
   e.target.disabled = false;
 };
+
+async function doLogout(){
+  if(!confirm('确定要退出当前管理会话吗？')) return;
+  try{ await api('/api/logout', {method:'POST'}); }catch(e){}
+  location.href = 'login';
+}
+const loBtn = $('#logoutBtn');
+if(loBtn) loBtn.onclick = doLogout;
+const setLoBtn = $('#settingsLogoutBtn');
+if(setLoBtn) setLoBtn.onclick = doLogout;
+
+const nexKwInput = $('#nex-kw');
+const nexKwClear = $('#nex-kw-clear');
+if(nexKwInput && nexKwClear){
+  nexKwInput.addEventListener('input', () => {
+    nexKwClear.style.display = nexKwInput.value ? 'inline-block' : 'none';
+  });
+  nexKwClear.onclick = () => {
+    nexKwInput.value = '';
+    nexKwClear.style.display = 'none';
+    loadNodeExplorer();
+  };
+}
 
 poll();
 setInterval(poll, 3000);

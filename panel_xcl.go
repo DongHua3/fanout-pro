@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-// XCL 对接 byJoey/xray-cf-lite 装出来的系统级 Xray。
+// XCL 对接 xray-cf-lite 装出来的系统级 Xray。
 //
 // xray-cf-lite 把 Xray 装成系统服务，配置固定落在 /usr/local/etc/xray/config.json，
 // 生成若干个 ws 入站并套 Cloudflare 前置，但出站只有 direct/block、没有分流。

@@ -107,7 +107,7 @@ func main() {
 	mux.HandleFunc("/api/xui/bind", apiXUIBind(mgr))
 	mux.HandleFunc("/api/xui/clone", apiXUIClone(mgr))
 	mux.HandleFunc("/api/xui/detail", apiXUIDetail)
-	mux.HandleFunc("/api/xui/links", apiXUILinks)
+	mux.HandleFunc("/api/xui/links", apiXUILinks(mgr))
 	mux.HandleFunc("/api/xui/delete", apiXUIDelete(mgr))
 	mux.HandleFunc("/api/panel/inbound/new", apiInboundCreate(mgr))
 	mux.HandleFunc("/api/panel/inbound/update", apiInboundUpdate(mgr))
@@ -852,7 +852,15 @@ func apiXUIClone(m *Manager) http.HandlerFunc {
 			return
 		}
 
-		reqPort, _ := strconv.Atoi(r.URL.Query().Get("port"))
+		var reqPort int
+		if v := r.URL.Query().Get("port"); v != "" {
+			var err error
+			reqPort, err = strconv.Atoi(v)
+			if err != nil || reqPort < 1 || reqPort > 65535 {
+				writeJSON(w, http.StatusBadRequest, map[string]string{"error": "端口超出合法范围 (1 ~ 65535)"})
+				return
+			}
+		}
 		x, err := openPanel()
 		if err != nil {
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
@@ -950,46 +958,106 @@ func publicHost(r *http.Request) string {
 	return host
 }
 
-// apiXUILinks 批量导出多个入站的分享链接。
-func apiXUILinks(w http.ResponseWriter, r *http.Request) {
-	x, err := openPanel()
-	if err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
-		return
-	}
+// ExportItem 描述一个入站的分享链接与其出口归属。
+type ExportItem struct {
+	ID         int          `json:"id"`
+	Port       int          `json:"port"`
+	Protocol   string       `json:"protocol"`
+	Remark     string       `json:"remark"`
+	IsDirect   bool         `json:"is_direct"`
+	ExitRegion string       `json:"exit_region,omitempty"`
+	ExitIP     string       `json:"exit_ip,omitempty"`
+	ExitHost   string       `json:"exit_host,omitempty"`
+	Clients    []ClientInfo `json:"clients,omitempty"`
+	Links      []string     `json:"links"`
+}
 
-	var ids []int
-	if raw := r.URL.Query().Get("ids"); raw != "" {
-		for _, part := range strings.Split(raw, ",") {
-			if n, err := strconv.Atoi(strings.TrimSpace(part)); err == nil {
-				ids = append(ids, n)
-			}
-		}
-	} else {
-		list, err := x.Inbounds(nil)
+// apiXUILinks 批量导出多个入站的分享链接，并标注母机直连与出口归属。
+func apiXUILinks(m *Manager) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		x, err := openPanel()
 		if err != nil {
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
 			return
 		}
-		for _, ib := range list {
-			ids = append(ids, ib.ID)
-		}
-	}
-	if len(ids) == 0 {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "没有可导出的入站"})
-		return
-	}
 
-	host := r.URL.Query().Get("host")
-	if host == "" {
-		host = publicHost(r)
+		var ids []int
+		if raw := r.URL.Query().Get("ids"); raw != "" {
+			for _, part := range strings.Split(raw, ",") {
+				if n, err := strconv.Atoi(strings.TrimSpace(part)); err == nil {
+					ids = append(ids, n)
+				}
+			}
+		} else {
+			list, err := x.Inbounds(nil)
+			if err != nil {
+				writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+				return
+			}
+			for _, ib := range list {
+				if ib.Enable {
+					ids = append(ids, ib.ID)
+				}
+			}
+		}
+		if len(ids) == 0 {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "没有可导出的入站"})
+			return
+		}
+
+		host := r.URL.Query().Get("host")
+		if host == "" {
+			host = publicHost(r)
+		}
+
+		// 构建出口归属映射
+		type exitInfo struct {
+			region string
+			ip     string
+			host   string
+		}
+		inboundExitMap := make(map[int]exitInfo)
+		if m != nil {
+			ev := m.ExitsOf()
+			for _, ex := range ev.Exits {
+				for _, ib := range ex.Inbounds {
+					inboundExitMap[ib.ID] = exitInfo{
+						region: ex.Region,
+						ip:     ex.ExitIP,
+						host:   ex.Host,
+					}
+				}
+			}
+		}
+
+		allLinks := make([]string, 0)
+		items := make([]ExportItem, 0, len(ids))
+		for _, id := range ids {
+			detail, err := x.InboundDetail(id, host)
+			if err != nil {
+				continue
+			}
+			allLinks = append(allLinks, detail.Links...)
+			ex, isExit := inboundExitMap[id]
+			items = append(items, ExportItem{
+				ID:         detail.ID,
+				Port:       detail.Port,
+				Protocol:   detail.Protocol,
+				Remark:     detail.Remark,
+				IsDirect:   !isExit,
+				ExitRegion: ex.region,
+				ExitIP:     ex.ip,
+				ExitHost:   ex.host,
+				Clients:    detail.Clients,
+				Links:      detail.Links,
+			})
+		}
+
+		writeJSON(w, http.StatusOK, map[string]any{
+			"links": allLinks,
+			"items": items,
+		})
 	}
-	links, err := x.InboundLinks(ids, host)
-	if err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "links": links})
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"links": links})
 }
 
 // apiXUIDelete 删除入站。停掉出口后它的入站会留下来，用户需要一个清理入口。
@@ -1043,6 +1111,10 @@ func apiInboundUpdate(m *Manager) http.HandlerFunc {
 			port, err := strconv.Atoi(v)
 			if err != nil {
 				writeJSON(w, http.StatusBadRequest, map[string]string{"error": "端口无效"})
+				return
+			}
+			if port < 1 || port > 65535 {
+				writeJSON(w, http.StatusBadRequest, map[string]string{"error": "端口超出合法范围 (1 ~ 65535)"})
 				return
 			}
 			patch.Port = &port
@@ -1117,7 +1189,15 @@ func apiInboundCreate(m *Manager) http.HandlerFunc {
 		}
 
 		q := r.URL.Query()
-		port, _ := strconv.Atoi(q.Get("port"))
+		var port int
+		if v := q.Get("port"); v != "" {
+			var err error
+			port, err = strconv.Atoi(v)
+			if err != nil || port < 1 || port > 65535 {
+				writeJSON(w, http.StatusBadRequest, map[string]string{"error": "端口超出合法范围 (1 ~ 65535)"})
+				return
+			}
+		}
 		ib, err := p.CreateInbound(NewInboundSpec{
 			Protocol: q.Get("protocol"),
 			Network:  q.Get("network"),

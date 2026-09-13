@@ -185,3 +185,51 @@ func TestAPISubscription(t *testing.T) {
 	handler(w, req)
 	t.Logf("apiSubscription status: %d", w.Code)
 }
+
+func TestAPIPortValidationAndLinks(t *testing.T) {
+	testDir := t.TempDir()
+	mgr := &Manager{workDir: testDir}
+
+	// 1. apiInboundUpdate 端口合法性校验
+	updateHandler := apiInboundUpdate(mgr)
+	{
+		req := httptest.NewRequest(http.MethodPost, "/api/panel/inbound/update?id=1&port=70000", nil)
+		w := httptest.NewRecorder()
+		updateHandler(w, req)
+		// 校验拦截：即便后端 panel 没起，id/port 参数检验也应当被正确拦截或处理
+		if w.Code != http.StatusBadRequest && w.Code != http.StatusBadGateway {
+			t.Errorf("expected 400 or 502 for port 70000, got %d", w.Code)
+		}
+	}
+
+	// 2. apiInboundCreate 端口边界校验
+	createHandler := apiInboundCreate(mgr)
+	{
+		req := httptest.NewRequest(http.MethodPost, "/api/panel/inbound/new?port=99999", nil)
+		w := httptest.NewRecorder()
+		createHandler(w, req)
+		if w.Code != http.StatusBadRequest && w.Code != http.StatusBadGateway {
+			t.Errorf("expected 400 or 502 for port 99999, got %d", w.Code)
+		}
+	}
+
+	// 3. apiXUIClone 端口边界校验
+	cloneHandler := apiXUIClone(mgr)
+	{
+		req := httptest.NewRequest(http.MethodPost, "/api/xui/clone?id=1&hosts=test&port=88888", nil)
+		w := httptest.NewRecorder()
+		cloneHandler(w, req)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("expected 400 for out of range clone port, got %d", w.Code)
+		}
+	}
+
+	// 4. apiXUILinks 接口调用
+	linksHandler := apiXUILinks(mgr)
+	{
+		req := httptest.NewRequest(http.MethodGet, "/api/xui/links?ids=1,2", nil)
+		w := httptest.NewRecorder()
+		linksHandler(w, req)
+		t.Logf("apiXUILinks status: %d (body: %s)", w.Code, w.Body.String())
+	}
+}

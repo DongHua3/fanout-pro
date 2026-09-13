@@ -82,11 +82,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/DongHua3/fanout-pro/main/ins
 不少 LXC 小鸡没给这个权限，`ls /dev/net/tun` 不存在且 `mknod` 报
 Operation not permitted 的话，这台机器用不了，跟发行版无关。
 
-装完敲 `f` 打开管理菜单：
-
-![管理菜单](https://images.joeyblog.net/2026/7/26/fanout-7-menu.png)
-
-装完会打印管理界面地址、访问路径和口令：
+装完敲 `f` 打开管理菜单，会打印管理界面地址、访问路径和口令：
 
 ```
 管理界面  http://<你的IP>:8899/gwPuWHvaNr/
@@ -104,21 +100,13 @@ Operation not permitted 的话，这台机器用不了，跟发行版无关。
 拉起隧道、为每个出口复制一份节点链接并绑好，进度按目标逐条回报。原来要手点
 五步跨两栏的事，现在一次点击十几秒完成。
 
-![新建出口](https://images.joeyblog.net/2026/7/27/fanout-wizard.png)
-
 每行右侧两个按钮：换一个节点（出口 IP 变、端口不变，已分发的客户端配置不用改），
 或者停掉这个出口。
 
-点节点名进详情，可以改端口、备注、启停，管理客户端，以及改绑到别的出口：
+点节点名进详情，可以改端口、备注、启停，管理客户端，以及改绑到别的出口。
+一个入站可以挂多套客户端凭据，分发给不同的人；每套都能单独重置，重置后旧链接立即失效。
 
-![节点详情](https://images.joeyblog.net/2026/7/27/fanout-detail.png)
-
-一个入站可以挂多套客户端凭据，分发给不同的人；每套都能单独重置，
-重置后旧链接立即失效。
-
-「导出链接」一次性拿到所有节点链接：
-
-![导出链接](https://images.joeyblog.net/2026/7/27/fanout-export.png)
+「导出链接」一次性拿到所有节点链接与 Base64 订阅源（/sub）。
 
 ### 节点链接从哪来
 
@@ -127,15 +115,13 @@ Operation not permitted 的话，这台机器用不了，跟发行版无关。
 按钮，可以选协议（VLESS / VMess / Trojan）、传输（TCP / WebSocket / gRPC /
 HTTPUpgrade / XHTTP）和安全层（无 / TLS / REALITY）。
 
-![新建节点](https://images.joeyblog.net/2026/7/27/fanout-newnode.png)
-
 REALITY 的密钥对和 shortId 自动生成；TLS 不填证书就生成自签的，分享链接会带上
 证书指纹让客户端固定信任。也可以填自己的证书路径。
 
 接管 3x-ui 和自建这两种模式下，改端口、启停、加删客户端、绑定出口的操作完全一致，
 用起来没有区别。
 
-装了 [xray-cf-lite](https://github.com/byJoey/xray-cf-lite) 的机器会自动接管它生成的
+装了 xray-cf-lite 的机器会自动接管它生成的
 三个节点。这个模式下节点归 xray-cf-lite 管，fanout 只负责给每个节点指定走哪条出口，
 所以界面上不提供新建、删除和改节点的入口——想改端口或 UUID 去 xray-cf-lite 那边改。
 两边共用同一份 Xray 配置，fanout 只往里加自己前缀的出站和分流规则，互不覆盖。
@@ -196,10 +182,7 @@ netns 仍能经母机 NAT 出网，只看通不通会漏判。连续两次不符
 本工具只是调用其公开的节点列表并用官方 openvpn 客户端连接，不修改也不代理其服务。
 使用时请遵守 VPN Gate 的条款和你所在地的法律。
 
-## 交流
+## 反馈与支持
 
-- 交流群：<https://t.me/+ft-zI76oovgwNmRh>
-- 视频教程：<https://youtube.com/@joeyblog>
-- 博客：<https://joeyblog.net>
+如有问题或功能建议，欢迎在 GitHub 提交 Issue 与讨论：<https://github.com/DongHua3/fanout-pro/issues>
 
-用着有问题、或者想要什么功能，去群里说或提 issue。

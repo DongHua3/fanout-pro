@@ -150,12 +150,17 @@ const sessionCookie = "fanout_session"
 // Wrap 保护一个 handler，未登录时 API 返回 401、页面跳登录。
 func (a *Auth) Wrap(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/login" {
+		path := strings.TrimSuffix(r.URL.Path, "/")
+		if path == "/login" {
 			a.handleLogin(w, r)
 			return
 		}
+		if path == "/logout" || path == "/api/logout" {
+			a.handleLogout(w, r)
+			return
+		}
 		// 客户端订阅免 cookie 访问（凭 token 或密码鉴权）
-		if r.URL.Path == "/sub" || r.URL.Path == "/api/sub" {
+		if path == "/sub" || path == "/api/sub" {
 			tok := r.URL.Query().Get("token")
 			if tok == "" {
 				tok = r.URL.Query().Get("pwd")
@@ -228,8 +233,17 @@ func clientIP(r *http.Request) string {
 	return host
 }
 
+func redirectRelative(w http.ResponseWriter, target string, code int) {
+	w.Header().Set("Location", target)
+	w.WriteHeader(code)
+}
+
 func (a *Auth) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
+		if c, err := r.Cookie(sessionCookie); err == nil && a.valid(c.Value) {
+			redirectRelative(w, "./", http.StatusFound)
+			return
+		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = w.Write([]byte(loginHTML))
 		return
@@ -261,54 +275,101 @@ func (a *Auth) handleLogin(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"ok": "已登录"})
 }
 
+func (a *Auth) handleLogout(w http.ResponseWriter, r *http.Request) {
+	if c, err := r.Cookie(sessionCookie); err == nil {
+		a.mu.Lock()
+		delete(a.sessions, c.Value)
+		a.mu.Unlock()
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     sessionCookie,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   -1,
+		Expires:  time.Unix(0, 0),
+	})
+	path := strings.TrimSuffix(r.URL.Path, "/")
+	if r.Method == http.MethodPost || path == "/api/logout" || strings.Contains(r.Header.Get("Accept"), "application/json") {
+		writeJSON(w, http.StatusOK, map[string]string{"ok": "已退出登录"})
+		return
+	}
+	redirectRelative(w, "login", http.StatusFound)
+}
+
 const loginHTML = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>fanout</title>
+<title>fanout - 登录</title>
 <style>
-body{margin:0;height:100vh;display:flex;flex-direction:column;gap:16px;
+:root{
+  --bg:#0e1116; --card:#161b22; --line:#262c36; --text:#dde3ec;
+  --dim:#8b95a5; --accent:#4a9eda; --bad:#c25450;
+}
+*{box-sizing:border-box}
+body{margin:0;height:100vh;display:flex;flex-direction:column;gap:18px;
   align-items:center;justify-content:center;
-  background:#12151a;color:#dde3ec;
-  font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  background:radial-gradient(circle at 50% 30%, #151a23 0%, var(--bg) 100%);
+  color:var(--text);font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+form{background:var(--card);border:1px solid var(--line);border-radius:8px;
+  padding:26px 24px;width:320px;box-shadow:0 12px 36px rgba(0,0,0,.45)}
+.brand{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+h1{font-size:15px;font-weight:700;margin:0;letter-spacing:.3px;color:#fff}
+.tag{font-size:10px;font-weight:700;padding:1px 5px;background:rgba(74,158,218,.15);
+  color:var(--accent);border:1px solid rgba(74,158,218,.35);border-radius:4px}
+.subtitle{font-size:11px;color:var(--dim);margin-bottom:18px}
+label{display:block;color:var(--dim);font-size:11px;margin-bottom:6px}
+input{width:100%;box-sizing:border-box;background:#0a0d11;border:1px solid var(--line);
+  color:var(--text);border-radius:4px;padding:8px 10px;font:inherit;transition:border-color .15s}
+input:focus{outline:none;border-color:var(--accent)}
+button{width:100%;margin-top:16px;background:var(--accent);border:0;color:#080b0f;
+  font:inherit;font-weight:700;border-radius:4px;padding:9px;cursor:pointer;transition:opacity .15s}
+button:hover{opacity:.92}
+button:active{transform:translateY(1px)}
+.err{color:var(--bad);font-size:11px;margin-top:10px;min-height:16px;text-align:center}
 .links{display:flex;gap:16px}
-.links a{color:#8b95a5;text-decoration:none;font-size:12px}
-.links a:hover{color:#4a9eda}
-form{background:#181c23;border:1px solid #262c36;border-radius:6px;
-  padding:22px 24px;width:300px}
-h1{font-size:13px;font-weight:600;margin:0 0 16px}
-label{display:block;color:#8b95a5;font-size:11px;margin-bottom:6px}
-input{width:100%;box-sizing:border-box;background:#0e1116;border:1px solid #262c36;
-  color:#dde3ec;border-radius:4px;padding:7px 9px;font:inherit}
-input:focus{outline:none;border-color:#4a9eda}
-button{width:100%;margin-top:14px;background:#4a9eda;border:0;color:#0b0e12;
-  font:inherit;font-weight:600;border-radius:4px;padding:8px;cursor:pointer}
-.err{color:#c25450;font-size:11px;margin-top:10px;min-height:14px}
+.links a{color:var(--dim);text-decoration:none;font-size:11px;transition:color .15s}
+.links a:hover{color:var(--accent)}
 </style>
 </head>
 <body>
 <form id="f">
-  <h1>fanout</h1>
+  <div class="brand">
+    <h1>fanout</h1>
+    <span class="tag">PRO</span>
+  </div>
+  <div class="subtitle">个人专属出口网关与智能分流控制台</div>
   <label for="pw">访问口令</label>
-  <input type="password" id="pw" autofocus autocomplete="current-password">
-  <button type="submit">进入</button>
+  <input type="password" id="pw" autofocus autocomplete="current-password" placeholder="请输入管理口令">
+  <button type="submit">进入控制台</button>
   <div class="err" id="err"></div>
 </form>
 <div class="links">
-  <a href="https://t.me/+ft-zI76oovgwNmRh" target="_blank" rel="noopener">交流群</a>
-  <a href="https://youtube.com/@joeyblog" target="_blank" rel="noopener">油管</a>
-  <a href="https://joeyblog.net" target="_blank" rel="noopener">博客</a>
-  <a href="https://github.com/DongHua3/fanout-pro" target="_blank" rel="noopener">GitHub</a>
+  <a href="https://github.com/DongHua3/fanout-pro" target="_blank" rel="noopener">fanout-pro</a>
 </div>
 <script>
 document.getElementById('f').onsubmit = async e => {
   e.preventDefault();
-  const body = new URLSearchParams({password: document.getElementById('pw').value});
-  const r = await fetch('login', {method:'POST', body});
-  if(r.ok){ location.reload(); return; }
-  const d = await r.json().catch(()=>({}));
-  document.getElementById('err').textContent = d.error || '登录失败';
+  const pw = document.getElementById('pw').value;
+  if(!pw){ document.getElementById('err').textContent = '请输入口令'; return; }
+  const btn = document.querySelector('button');
+  btn.disabled = true;
+  btn.textContent = '验证中…';
+  try{
+    const body = new URLSearchParams({password: pw});
+    const r = await fetch('login', {method:'POST', body});
+    if(r.ok){ location.replace('./'); return; }
+    const d = await r.json().catch(()=>({}));
+    document.getElementById('err').textContent = d.error || '登录失败';
+  }catch(e){
+    document.getElementById('err').textContent = '请求异常: ' + e.message;
+  }finally{
+    btn.disabled = false;
+    btn.textContent = '进入控制台';
+  }
 };
 </script>
 </body>

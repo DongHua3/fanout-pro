@@ -1,6 +1,8 @@
 package main
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -75,5 +77,106 @@ func TestLoginThrottleUnblocksAfterExpiry(t *testing.T) {
 	a.mu.Unlock()
 	if a.blocked(ip) {
 		t.Fatal("冷却到期后应解封")
+	}
+}
+
+func TestAuthLogout(t *testing.T) {
+	a := newTestAuth()
+	tok, err := a.issue()
+	if err != nil {
+		t.Fatalf("issue error: %v", err)
+	}
+	if !a.valid(tok) {
+		t.Fatal("token should be valid initially")
+	}
+
+	// 模拟 POST /api/logout 请求
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/logout", nil)
+	req.AddCookie(&http.Cookie{Name: sessionCookie, Value: tok})
+
+	a.handleLogout(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST /api/logout status = %d, want 200", rec.Code)
+	}
+	if a.valid(tok) {
+		t.Fatal("token should be invalidated after logout")
+	}
+
+	// 模拟 GET /logout 重定向
+	tok2, _ := a.issue()
+	rec2 := httptest.NewRecorder()
+	req2 := httptest.NewRequest(http.MethodGet, "/logout", nil)
+	req2.AddCookie(&http.Cookie{Name: sessionCookie, Value: tok2})
+	a.handleLogout(rec2, req2)
+	if rec2.Code != http.StatusFound {
+		t.Fatalf("GET /logout status = %d, want 302", rec2.Code)
+	}
+	if a.valid(tok2) {
+		t.Fatal("token2 should be invalidated after logout")
+	}
+}
+
+func TestAuthLoginAuthenticatedRedirect(t *testing.T) {
+	a := newTestAuth()
+	tok, err := a.issue()
+	if err != nil {
+		t.Fatalf("issue error: %v", err)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/login", nil)
+	req.AddCookie(&http.Cookie{Name: sessionCookie, Value: tok})
+
+	a.handleLogin(rec, req)
+	if rec.Code != http.StatusFound {
+		t.Fatalf("authenticated GET /login status = %d, want 302 redirect", rec.Code)
+	}
+	if loc := rec.Header().Get("Location"); loc != "./" {
+		t.Fatalf("authenticated GET /login redirect target = %q, want ./\n", loc)
+	}
+}
+
+func TestAuthWrapRouting(t *testing.T) {
+	a := newTestAuth()
+	innerCalled := false
+	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		innerCalled = true
+		w.WriteHeader(http.StatusOK)
+	})
+	wrapped := a.Wrap(inner)
+
+	// 1. 未登录访问 /api/test 应返回 401
+	rec1 := httptest.NewRecorder()
+	req1 := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+	wrapped.ServeHTTP(rec1, req1)
+	if rec1.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthenticated /api/test status = %d, want 401", rec1.Code)
+	}
+	if innerCalled {
+		t.Fatal("inner handler should not be called when unauthenticated")
+	}
+
+	// 2. 登录后访问 /api/test 应放行
+	tok, _ := a.issue()
+	rec2 := httptest.NewRecorder()
+	req2 := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+	req2.AddCookie(&http.Cookie{Name: sessionCookie, Value: tok})
+	wrapped.ServeHTTP(rec2, req2)
+	if rec2.Code != http.StatusOK || !innerCalled {
+		t.Fatalf("authenticated /api/test status = %d, innerCalled=%v", rec2.Code, innerCalled)
+	}
+
+	// 3. 访问 /api/logout/ (带斜杠) 路由应被拦截并成功登出
+	rec3 := httptest.NewRecorder()
+	req3 := httptest.NewRequest(http.MethodPost, "/api/logout/", nil)
+	req3.AddCookie(&http.Cookie{Name: sessionCookie, Value: tok})
+	wrapped.ServeHTTP(rec3, req3)
+	if rec3.Code != http.StatusOK {
+		t.Fatalf("wrapped POST /api/logout/ status = %d, want 200", rec3.Code)
+	}
+	if a.valid(tok) {
+		t.Fatal("tok should be invalidated via Wrap logout handler")
 	}
 }

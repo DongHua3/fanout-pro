@@ -41,6 +41,8 @@ func TestNormalizeInboundSpecRejects(t *testing.T) {
 		{"未知安全层", NewInboundSpec{Security: "xtls", Port: 1}, nil},
 		{"REALITY 配 ws", NewInboundSpec{Network: "ws", Security: "reality", Port: 1}, nil},
 		{"端口占用", NewInboundSpec{Port: 443}, map[int]bool{443: true}},
+		{"端口小于1", NewInboundSpec{Port: -1}, nil},
+		{"端口大于65535", NewInboundSpec{Port: 70000}, nil},
 		{"vision 配 ws", NewInboundSpec{Network: "ws", Security: "tls", Vision: true, Port: 1}, nil},
 	}
 	for _, c := range cases {
