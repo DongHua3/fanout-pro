@@ -303,74 +303,377 @@ const loginHTML = `<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>fanout - 登录</title>
+<title>fanout PRO - 登录控制台</title>
 <style>
-:root{
-  --bg:#0e1116; --card:#161b22; --line:#262c36; --text:#dde3ec;
-  --dim:#8b95a5; --accent:#4a9eda; --bad:#c25450;
+:root {
+  --bg-canvas: #0b0f19;
+  --bg-card: #111827;
+  --bg-surface: #172033;
+  --bg-input: #0e1524;
+  --border-card: #1f293d;
+  --border-focus: #0284c7;
+  --text-main: #f1f5f9;
+  --text-muted: #94a3b8;
+  --accent-blue: #0284c7;
+  --status-danger-bg: rgba(239, 68, 68, 0.12);
+  --status-danger-border: rgba(239, 68, 68, 0.32);
+  --radius-lg: 14px;
+  --radius-md: 8px;
+  --radius-sm: 6px;
 }
-*{box-sizing:border-box}
-body{margin:0;height:100vh;display:flex;flex-direction:column;gap:18px;
-  align-items:center;justify-content:center;
-  background:radial-gradient(circle at 50% 30%, #151a23 0%, var(--bg) 100%);
-  color:var(--text);font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-form{background:var(--card);border:1px solid var(--line);border-radius:8px;
-  padding:26px 24px;width:320px;box-shadow:0 12px 36px rgba(0,0,0,.45)}
-.brand{display:flex;align-items:center;gap:8px;margin-bottom:6px}
-h1{font-size:15px;font-weight:700;margin:0;letter-spacing:.3px;color:#fff}
-.tag{font-size:10px;font-weight:700;padding:1px 5px;background:rgba(74,158,218,.15);
-  color:var(--accent);border:1px solid rgba(74,158,218,.35);border-radius:4px}
-.subtitle{font-size:11px;color:var(--dim);margin-bottom:18px}
-label{display:block;color:var(--dim);font-size:11px;margin-bottom:6px}
-input{width:100%;box-sizing:border-box;background:#0a0d11;border:1px solid var(--line);
-  color:var(--text);border-radius:4px;padding:8px 10px;font:inherit;transition:border-color .15s}
-input:focus{outline:none;border-color:var(--accent)}
-button{width:100%;margin-top:16px;background:var(--accent);border:0;color:#080b0f;
-  font:inherit;font-weight:700;border-radius:4px;padding:9px;cursor:pointer;transition:opacity .15s}
-button:hover{opacity:.92}
-button:active{transform:translateY(1px)}
-.err{color:var(--bad);font-size:11px;margin-top:10px;min-height:16px;text-align:center}
-.links{display:flex;gap:16px}
-.links a{color:var(--dim);text-decoration:none;font-size:11px;transition:color .15s}
-.links a:hover{color:var(--accent)}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-canvas);
+  background-image:
+    radial-gradient(circle at 50% 20%, rgba(2, 132, 199, 0.16) 0%, transparent 60%),
+    radial-gradient(circle at 80% 80%, rgba(79, 70, 229, 0.08) 0%, transparent 50%);
+  color: var(--text-main);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  padding: 20px;
+  overflow-x: hidden;
+}
+.login-card {
+  background: rgba(17, 24, 39, 0.9);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-lg);
+  padding: 38px 32px;
+  width: 100%;
+  max-width: 380px;
+  animation: cardFadeUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes cardFadeUp {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+.shake { animation: shake 0.38s ease-in-out; }
+
+.brand-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.logo-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, #0284c7, #4f46e5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  box-shadow: 0 0 14px rgba(2, 132, 199, 0.4);
+}
+.logo-mark svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+.brand-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pro-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  background: rgba(2, 132, 199, 0.15);
+  border: 1px solid rgba(2, 132, 199, 0.35);
+  color: #38bdf8;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.brand-subtitle {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 26px;
+}
+
+.field {
+  margin-bottom: 18px;
+}
+.field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.input-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+.input-icon svg, .eye-toggle svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+.input-wrap input {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-md);
+  padding: 11px 40px 11px 38px;
+  color: var(--text-main);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  outline: none;
+  transition: all 0.15s ease;
+}
+.input-wrap input:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.22);
+  background: #0d1628;
+}
+.eye-toggle {
+  position: absolute;
+  right: 10px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+.eye-toggle:hover {
+  color: var(--text-main);
+}
+
+.btn-submit {
+  width: 100%;
+  margin-top: 6px;
+  background: linear-gradient(135deg, #0284c7, #0369a1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  padding: 11px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+  transition: all 0.15s ease;
+}
+.btn-submit:hover:not(:disabled) {
+  background: linear-gradient(135deg, #0369a1, #0284c7);
+  box-shadow: 0 6px 18px rgba(2, 132, 199, 0.45);
+  transform: translateY(-1px);
+}
+.btn-submit:active:not(:disabled) {
+  transform: translateY(0);
+}
+.btn-submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+.spin {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  fill: none;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { 100% { transform: rotate(360deg); } }
+
+.err-box {
+  margin-top: 14px;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--status-danger-bg);
+  border: 1px solid var(--status-danger-border);
+  color: #fca5a5;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.err-box svg {
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  flex-shrink: 0;
+}
+
+.login-footer {
+  margin-top: 24px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #475569;
+  font-size: 11px;
+}
+.login-footer svg {
+  width: 13px;
+  height: 13px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
 </style>
 </head>
 <body>
-<form id="f">
-  <div class="brand">
-    <h1>fanout</h1>
-    <span class="tag">PRO</span>
+<div class="login-card" id="loginCard">
+  <div class="brand-header">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24">
+        <circle cx="6" cy="12" r="3"/>
+        <circle cx="18" cy="6" r="3"/>
+        <circle cx="18" cy="18" r="3"/>
+        <path d="M9 12h3a3 3 0 0 0 3-3V6m-3 6a3 3 0 0 1 3 3v3"/>
+      </svg>
+    </div>
+    <div class="brand-title">
+      fanout
+      <span class="pro-badge">PRO</span>
+    </div>
   </div>
-  <div class="subtitle">个人专属出口网关与智能分流控制台</div>
-  <label for="pw">访问口令</label>
-  <input type="password" id="pw" autofocus autocomplete="current-password" placeholder="请输入管理口令">
-  <button type="submit">进入控制台</button>
-  <div class="err" id="err"></div>
-</form>
-<div class="links">
-  <a href="https://github.com/DongHua3/fanout-pro" target="_blank" rel="noopener">fanout-pro</a>
+  <p class="brand-subtitle">个人专属出口网关与智能分流控制台</p>
+
+  <form id="f">
+    <div class="field">
+      <label for="pw">访问口令</label>
+      <div class="input-wrap">
+        <span class="input-icon">
+          <svg viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </span>
+        <input type="password" id="pw" autofocus autocomplete="current-password" placeholder="请输入管理口令">
+        <button type="button" class="eye-toggle" id="eyeToggle" title="显示/隐藏口令" tabindex="-1">
+          <svg id="eyeIcon" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <button type="submit" id="submitBtn" class="btn-submit">
+      <span id="btnText">进入控制台</span>
+      <svg id="btnSpinner" class="spin" style="display:none" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.2-8.5"/></svg>
+    </button>
+
+    <div class="err-box" id="errBox" style="display:none">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="errText"></span>
+    </div>
+  </form>
 </div>
+
+<div class="login-footer">
+  <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+  <span>Fanout PRO · 端到端安全加密控制台</span>
+</div>
+
 <script>
+const pwInput = document.getElementById('pw');
+const eyeBtn = document.getElementById('eyeToggle');
+const eyeIcon = document.getElementById('eyeIcon');
+const card = document.getElementById('loginCard');
+const errBox = document.getElementById('errBox');
+const errText = document.getElementById('errText');
+const submitBtn = document.getElementById('submitBtn');
+const btnText = document.getElementById('btnText');
+const btnSpinner = document.getElementById('btnSpinner');
+
+const EYE_OPEN = '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>';
+const EYE_CLOSE = '<path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/>';
+
+eyeBtn.onclick = () => {
+  const isPw = pwInput.type === 'password';
+  pwInput.type = isPw ? 'text' : 'password';
+  eyeIcon.innerHTML = isPw ? EYE_CLOSE : EYE_OPEN;
+};
+
+function showError(msg){
+  errText.textContent = msg;
+  errBox.style.display = 'flex';
+  card.classList.remove('shake');
+  void card.offsetWidth; // 触发 reflow 重置动画
+  card.classList.add('shake');
+}
+
 document.getElementById('f').onsubmit = async e => {
   e.preventDefault();
-  const pw = document.getElementById('pw').value;
-  if(!pw){ document.getElementById('err').textContent = '请输入口令'; return; }
-  const btn = document.querySelector('button');
-  btn.disabled = true;
-  btn.textContent = '验证中…';
+  const pw = pwInput.value.trim();
+  if(!pw){
+    showError('请输入访问管理口令');
+    pwInput.focus();
+    return;
+  }
+  errBox.style.display = 'none';
+  submitBtn.disabled = true;
+  btnText.textContent = '验证中…';
+  btnSpinner.style.display = 'inline-block';
+
   try{
     const body = new URLSearchParams({password: pw});
     const r = await fetch('login', {method:'POST', body});
-    if(r.ok){ location.replace('./'); return; }
+    if(r.ok){
+      btnText.textContent = '已验证，正在进入…';
+      location.replace('./');
+      return;
+    }
     const d = await r.json().catch(()=>({}));
-    document.getElementById('err').textContent = d.error || '登录失败';
-  }catch(e){
-    document.getElementById('err').textContent = '请求异常: ' + e.message;
+    showError(d.error || '访问口令不正确');
+    pwInput.select();
+  }catch(err){
+    showError('网络连接异常: ' + err.message);
   }finally{
-    btn.disabled = false;
-    btn.textContent = '进入控制台';
+    submitBtn.disabled = false;
+    btnText.textContent = '进入控制台';
+    btnSpinner.style.display = 'none';
   }
 };
 </script>
 </body>
 </html>`
+

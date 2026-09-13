@@ -613,6 +613,18 @@ main{padding:20px 24px 60px;max-width:1280px;margin:0 auto}
 .sheet .body{overflow:auto;padding:20px;background:var(--bg-canvas)}
 .sheet .foot{display:flex;align-items:center;gap:10px;padding:14px 20px;
   border-top:1px solid var(--border-card);background:var(--bg-card)}
+/* 自定义确认操作弹窗 (Custom Confirm Modal) */
+.confirm-sheet{max-width:440px;width:92%;padding:22px 24px;border-radius:var(--radius-md)}
+.confirm-head{display:flex;align-items:flex-start;gap:16px;margin-bottom:20px}
+.confirm-icon-box{width:42px;height:42px;border-radius:var(--radius-sm);
+  background:var(--accent-blue-bg);border:1px solid var(--accent-blue-border);
+  color:var(--accent-blue);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.confirm-icon-box.danger{background:var(--status-danger-bg);border-color:var(--status-danger-border);color:var(--status-danger)}
+.confirm-content h3{margin:0 0 6px;font-size:15px;font-weight:700;color:var(--text-main)}
+.confirm-msg{margin:0;font-size:13px;color:var(--text-muted);line-height:1.5;word-break:break-word}
+.confirm-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px}
+.btn-danger{background:var(--status-danger);border-color:var(--status-danger);color:#fff;font-weight:600}
+.btn-danger:hover:not(:disabled){background:#dc2626;border-color:#dc2626}
 .count{color:var(--text-muted);font-size:11px}
 label.f{display:block;margin-bottom:16px}
 label.f[hidden]{display:none}
@@ -1504,6 +1516,23 @@ textarea:focus{outline:none;border-color:var(--accent)}
   </div>
 </div>
 
+<!-- 自定义操作确认模态框 -->
+<div class="modal" id="confirmModal">
+  <div class="sheet confirm-sheet">
+    <div class="confirm-head">
+      <div class="confirm-icon-box" id="confirmIconBox"></div>
+      <div class="confirm-content">
+        <h3 id="confirmTitle">操作确认</h3>
+        <p class="confirm-msg" id="confirmMsg"></p>
+      </div>
+    </div>
+    <div class="confirm-actions">
+      <button type="button" class="btn" id="confirmCancelBtn" onclick="resolveConfirm(false)">取消</button>
+      <button type="button" class="btn primary" id="confirmOkBtn" onclick="resolveConfirm(true)">确定</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -2225,16 +2254,66 @@ let regions = [], region = '', regionsLoaded = false;
 function openModal(id){ $('#' + id).classList.add('open'); }
 function closeModal(id){ $('#' + id).classList.remove('open'); }
 
+let confirmResolver = null;
+function showConfirm(msg, opts = {}){
+  return new Promise(resolve => {
+    const titleEl = $('#confirmTitle');
+    const msgEl = $('#confirmMsg');
+    const iconBox = $('#confirmIconBox');
+    const okBtn = $('#confirmOkBtn');
+    const cancelBtn = $('#confirmCancelBtn');
+
+    titleEl.textContent = opts.title || '操作确认';
+    msgEl.textContent = msg;
+
+    if(opts.danger){
+      iconBox.className = 'confirm-icon-box danger';
+      iconBox.innerHTML = '<svg class="icon-md" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+      okBtn.className = 'btn btn-danger';
+      okBtn.textContent = opts.okText || '确认操作';
+    } else {
+      iconBox.className = 'confirm-icon-box';
+      iconBox.innerHTML = '<svg class="icon-md" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
+      okBtn.className = 'btn primary';
+      okBtn.textContent = opts.okText || '确定';
+    }
+    cancelBtn.textContent = opts.cancelText || '取消';
+
+    confirmResolver = resolve;
+    openModal('confirmModal');
+    setTimeout(() => { (opts.danger ? cancelBtn : okBtn).focus(); }, 40);
+  });
+}
+
+function resolveConfirm(res){
+  if(confirmResolver){
+    const fn = confirmResolver;
+    confirmResolver = null;
+    closeModal('confirmModal');
+    fn(res);
+  }
+}
+
 document.addEventListener('click', e => {
   const c = e.target.closest('[data-close]');
   if(c) closeModal(c.dataset.close);
 });
 document.addEventListener('keydown', e => {
-  if(e.key === 'Escape') document.querySelectorAll('.modal.open')
-    .forEach(m => m.classList.remove('open'));
+  if(e.key === 'Escape'){
+    if($('#confirmModal') && $('#confirmModal').classList.contains('open')){
+      resolveConfirm(false);
+      return;
+    }
+    document.querySelectorAll('.modal.open').forEach(m => m.classList.remove('open'));
+  }
 });
 document.querySelectorAll('.modal').forEach(m => {
-  m.onclick = e => { if(e.target === m) m.classList.remove('open'); };
+  m.onclick = e => {
+    if(e.target === m){
+      if(m.id === 'confirmModal') resolveConfirm(false);
+      else m.classList.remove('open');
+    }
+  };
 });
 
 function renderRegions(){
@@ -2443,7 +2522,7 @@ document.addEventListener('click', async e => {
   const del = e.target.closest('[data-delorphans]');
   if(del){
     const list = view.direct || [];
-    if(!confirm('删除这 ' + list.length + ' 个未绑定节点？此操作不可撤销。')) return;
+    if(!(await showConfirm('确定要删除这 ' + list.length + ' 个未绑定节点？此操作不可撤销。', {danger:true, title:'清理未绑定节点', okText:'确认清理'}))) return;
     del.disabled = true;
     try{
       await api('/api/xui/delete?ids=' + list.map(i => i.id).join(','), {method:'POST'});
@@ -2455,7 +2534,7 @@ document.addEventListener('click', async e => {
 
   const one = e.target.closest('[data-delone]');
   if(one){
-    if(!confirm('删除入站 ' + one.dataset.name + '？此操作不可撤销。')) return;
+    if(!(await showConfirm('确定要删除入站 ' + one.dataset.name + '？此操作不可撤销。', {danger:true, title:'删除入站', okText:'确认删除'}))) return;
     one.disabled = true;
     try{
       await api('/api/xui/delete?ids=' + one.dataset.delone, {method:'POST'});
@@ -2466,7 +2545,8 @@ document.addEventListener('click', async e => {
 });
 
 $('#stopall').onclick = async e => {
-  if(!confirm('停止全部 ' + view.exits.length + ' 个出口？')) return;
+  if(!view.exits || !view.exits.length) return;
+  if(!(await showConfirm('确定要停止全部 ' + view.exits.length + ' 个出口？已绑定的流量将被中断。', {danger:true, title:'停止全部出口', okText:'停止全部'}))) return;
   e.target.disabled = true;
   for(const x of view.exits){
     try{ await api('/api/stop?slot=' + x.slot, {method:'POST'}); }catch(err){}
@@ -2883,7 +2963,7 @@ document.addEventListener('click', async e => {
 
   const del = e.target.closest('[data-cdel]');
   if(del){
-    if(!confirm('删除客户端 ' + del.dataset.cdel + '？它的链接会立即失效。')) return;
+    if(!(await showConfirm('确定要删除客户端 ' + del.dataset.cdel + '？其连接将立即失效。', {danger:true, title:'删除客户端', okText:'确认删除'}))) return;
     del.disabled = true;
     try{
       await api('/api/panel/client/del?id=' + curDetail.id
@@ -2896,7 +2976,7 @@ document.addEventListener('click', async e => {
 
   const reset = e.target.closest('[data-creset]');
   if(reset){
-    if(!confirm('重置 ' + reset.dataset.creset + ' 的凭据？已分发的旧链接会立即失效。')) return;
+    if(!(await showConfirm('确定要重置 ' + reset.dataset.creset + ' 的凭据？已分发的旧链接将立即失效。', {danger:true, title:'重置客户端凭据', okText:'确认重置'}))) return;
     reset.disabled = true;
     try{
       await api('/api/panel/client/reset?id=' + curDetail.id
@@ -2911,7 +2991,7 @@ document.addEventListener('click', async e => {
   const dd = e.target.closest('#ddel');
   if(dd && curDetail){
     const name = (curDetail.remark || curDetail.protocol || '节点') + ' :' + curDetail.port;
-    if(!confirm('删除入站 ' + name + '？它的所有客户端链接都会失效，且不可撤销。')) return;
+    if(!(await showConfirm('确定要删除入站 ' + name + '？它的所有客户端链接都将失效，且不可撤销。', {danger:true, title:'删除入站', okText:'确认删除'}))) return;
     dd.disabled = true;
     try{
       await api('/api/xui/delete?ids=' + curDetail.id, {method:'POST'});
@@ -3426,7 +3506,8 @@ $('#updCheck').onclick = async e => {
 
 // 一键更新：后端下载替换二进制并重启服务，进程重启期间界面会短暂断连
 $('#updApply').onclick = async e => {
-  if(!confirm('更新到 ' + $('#updApplyVer').textContent + '？服务会重启，界面会短暂断开。')) return;
+  const ver = $('#updApplyVer').textContent;
+  if(!(await showConfirm('更新到 ' + ver + '？服务会重启，界面会短暂断开。', {title:'确认系统更新', okText:'立即更新'}))) return;
   e.target.disabled = true;
   e.target.textContent = '更新中…';
   try{
@@ -3535,7 +3616,7 @@ $('#setSave').onclick = async e => {
 };
 
 async function doLogout(){
-  if(!confirm('确定要退出当前管理会话吗？')) return;
+  if(!(await showConfirm('确定要退出当前管理控制台？', {title:'退出登录', okText:'退出登录'}))) return;
   try{ await api('/api/logout', {method:'POST'}); }catch(e){}
   location.href = 'login';
 }
