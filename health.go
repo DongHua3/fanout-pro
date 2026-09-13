@@ -59,7 +59,17 @@ func (m *Manager) tunnelHealthy(t *Tunnel) bool {
 		return false
 	}
 	// 出口 IP 变了说明 VPN 已经断开，流量退回了母机
-	return got == t.ExitIP
+	if got == t.ExitIP {
+		go func() {
+			if livePing := t.probeLiveLatency(); livePing > 0 {
+				t.mu.Lock()
+				t.Node.Ping = livePing
+				t.mu.Unlock()
+			}
+		}()
+		return true
+	}
+	return false
 }
 
 // reconnect 就地把一条隧道换到别的节点上，保持槽位与端口不变，

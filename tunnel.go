@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -252,6 +253,45 @@ func (t *Tunnel) probeExitIP() (string, error) {
 		return "", fmt.Errorf("出口 IP 返回异常: %q", ip)
 	}
 	return ip, nil
+}
+
+func parsePingOutput(s string) int {
+	idx := strings.Index(s, "time=")
+	if idx == -1 {
+		return 0
+	}
+	sub := s[idx+5:]
+	end := len(sub)
+	for i, c := range sub {
+		if c == ' ' || c == '\n' || c == '\r' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') {
+			end = i
+			break
+		}
+	}
+	if f, parseErr := strconv.ParseFloat(strings.TrimSpace(sub[:end]), 64); parseErr == nil && f > 0 {
+		return int(f)
+	}
+	return 0
+}
+
+// probeLiveLatency 在 netns 内执行极轻量 ICMP ping (超时 1s)，测量真实往返网络延迟
+func (t *Tunnel) probeLiveLatency() int {
+	out, err := exec.Command("ip", "netns", "exec", t.nsName(),
+		"ping", "-c", "1", "-W", "1", "1.1.1.1").Output()
+	if err == nil {
+		if p := parsePingOutput(string(out)); p > 0 {
+			return p
+		}
+	}
+	// 备用目标 8.8.8.8
+	out8, err8 := exec.Command("ip", "netns", "exec", t.nsName(),
+		"ping", "-c", "1", "-W", "1", "8.8.8.8").Output()
+	if err8 == nil {
+		if p := parsePingOutput(string(out8)); p > 0 {
+			return p
+		}
+	}
+	return 0
 }
 
 // stop 停止这条隧道并清理它占用的所有资源。

@@ -1850,22 +1850,24 @@ function renderExits(){
 
     // 延迟与速度徽章 (性能与测速数据)
     let perfBadges = '';
-    if(isUp || (e.ping && e.ping > 0) || (e.speed_mbps && e.speed_mbps > 0)){
-      let pingVal = (e.ping && e.ping > 0) ? e.ping : 28;
-      if(pingVal > 250) pingVal = 28; // 剔除历史 HTTP 远端耗时脏数据
+    let pingHTML = '';
+    if(e.ping && e.ping > 0){
+      const pingVal = e.ping;
       const pingCls = pingVal < 80 ? 'ping-good' : (pingVal < 180 ? 'ping-med' : 'ping-slow');
-      const pingHTML = '<span class="metric-tag tag-ping ' + pingCls + '" title="节点真实网络延迟 (RTT): ' + pingVal + ' ms">'
+      pingHTML = '<span class="metric-tag tag-ping ' + pingCls + '" title="节点真实网络延迟 (RTT): ' + pingVal + ' ms">'
         + '<svg class="icon-nano" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>'
         + pingVal + ' ms</span>';
+    }
 
-      const spdVal = (e.speed_mbps && e.speed_mbps > 0) ? e.speed_mbps : (pingVal < 60 ? 468.2 : 210.5);
+    let speedHTML = '';
+    if(e.speed_mbps && e.speed_mbps > 0){
+      const spdVal = e.speed_mbps;
       const spdStr = spdVal >= 100 ? spdVal.toFixed(0) : spdVal.toFixed(1);
-      const speedHTML = '<span class="metric-tag tag-speed" title="节点测速带宽: ' + spdStr + ' Mbps">'
+      speedHTML = '<span class="metric-tag tag-speed" title="节点测速带宽: ' + spdStr + ' Mbps">'
         + '<svg class="icon-nano" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>'
         + spdStr + ' Mbps</span>';
-
-      perfBadges = pingHTML + speedHTML;
     }
+    perfBadges = pingHTML + speedHTML;
 
     // 运营商与连线时间
     const ispName = (e.quality && e.quality.isp) ? e.quality.isp : (e.isp || '');
@@ -1987,13 +1989,20 @@ function renderPipeline(){
       ? '<span class="quality-tag tag-residential"><span class="dot-indicator"></span> 住宅宽带 ' + score + '分</span>'
       : '<span class="quality-tag tag-datacenter"><span class="dot-indicator"></span> 机房节点 ' + score + '分</span>';
 
-    let corePing = (coreOwner.ping && coreOwner.ping > 0) ? coreOwner.ping : 28;
-    if(corePing > 250) corePing = 28; // 剔除历史 HTTP 远端耗时脏数据
-    const pingCls = corePing < 80 ? 'ping-good' : (corePing < 180 ? 'ping-med' : 'ping-slow');
-    const coreSpd = (coreOwner.speed_mbps && coreOwner.speed_mbps > 0) ? coreOwner.speed_mbps : (corePing < 60 ? 468.2 : 210.5);
-    const spdStr = coreSpd >= 100 ? coreSpd.toFixed(0) : coreSpd.toFixed(1);
-    const corePerf = '<span class="metric-tag tag-ping ' + pingCls + '" title="节点网络延迟: ' + corePing + ' ms"><svg class="icon-nano" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>' + corePing + ' ms</span>'
-      + '<span class="metric-tag tag-speed" title="节点测速带宽: ' + spdStr + ' Mbps"><svg class="icon-nano" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>' + spdStr + ' Mbps</span>';
+    let corePingHTML = '';
+    if(coreOwner.ping && coreOwner.ping > 0){
+      const corePing = coreOwner.ping;
+      const pingCls = corePing < 80 ? 'ping-good' : (corePing < 180 ? 'ping-med' : 'ping-slow');
+      corePingHTML = '<span class="metric-tag tag-ping ' + pingCls + '" title="节点实时网络延迟: ' + corePing + ' ms"><svg class="icon-nano" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>' + corePing + ' ms</span>';
+    }
+
+    let coreSpdHTML = '';
+    if(coreOwner.speed_mbps && coreOwner.speed_mbps > 0){
+      const coreSpd = coreOwner.speed_mbps;
+      const spdStr = coreSpd >= 100 ? coreSpd.toFixed(0) : coreSpd.toFixed(1);
+      coreSpdHTML = '<span class="metric-tag tag-speed" title="节点测速带宽: ' + spdStr + ' Mbps"><svg class="icon-nano" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>' + spdStr + ' Mbps</span>';
+    }
+    const corePerf = corePingHTML + coreSpdHTML;
 
     stage3HTML = '<div class="pipeline-stage exit-active" id="pipelineExitStage">'
       + '<div class="pipeline-stage-label">'

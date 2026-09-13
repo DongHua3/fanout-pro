@@ -255,6 +255,9 @@ func (m *Manager) tryNode(t *Tunnel) error {
 		return err
 	}
 	t.ExitIP = ip
+	if livePing := t.probeLiveLatency(); livePing > 0 {
+		t.Node.Ping = livePing
+	}
 	return nil
 }
 
