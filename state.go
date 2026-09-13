@@ -10,12 +10,14 @@ import (
 // persistedTunnel 是隧道在磁盘上的形态。
 // 只存重建所需的信息，运行态（netns、进程、监听）重启后重新建立。
 type persistedTunnel struct {
-	Slot        int    `json:"slot"`
-	Port        int    `json:"port"`
-	HostName    string `json:"hostname"`
-	CountryCode string `json:"country_code"`
-	Country     string `json:"country"`
-	Config      string `json:"config"`
+	Slot        int     `json:"slot"`
+	Port        int     `json:"port"`
+	HostName    string  `json:"hostname"`
+	CountryCode string  `json:"country_code"`
+	Country     string  `json:"country"`
+	Config      string  `json:"config"`
+	Ping        int     `json:"ping,omitempty"`
+	SpeedMbps   float64 `json:"speed_mbps,omitempty"`
 	// SOCKS5 凭据要存盘：用户已经把它分发给客户端了，重启后变掉等于全断
 	SocksUser string `json:"socks_user,omitempty"`
 	SocksPass string `json:"socks_pass,omitempty"`
@@ -43,6 +45,8 @@ func (m *Manager) saveState() error {
 			CountryCode: t.Node.CountryCode,
 			Country:     t.Node.Country,
 			Config:      t.Node.Config,
+			Ping:        t.Node.Ping,
+			SpeedMbps:   t.Node.SpeedMbps,
 			SocksUser:   t.Cred.User,
 			SocksPass:   t.Cred.Pass,
 		})
@@ -89,6 +93,8 @@ func (m *Manager) restoreState() (int, error) {
 				HostName:    p.HostName,
 				CountryCode: p.CountryCode,
 				Country:     p.Country,
+				Ping:        p.Ping,
+				SpeedMbps:   p.SpeedMbps,
 			}
 		}
 		node.Config = p.Config

@@ -322,6 +322,43 @@ svg {
 .tag-residential { background: var(--status-up-bg); color: var(--status-up); border: 1px solid var(--status-up-border); }
 .tag-datacenter { background: var(--bg-surface); color: var(--text-muted); border: 1px solid var(--border-card); }
 .dot-indicator { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.metric-tag {
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.tag-speed {
+  background: var(--accent-blue-bg);
+  color: var(--accent-blue);
+  border: 1px solid var(--accent-blue-border);
+}
+.tag-ping {
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  border: 1px solid var(--border-card);
+}
+.tag-ping.ping-good {
+  background: var(--status-up-bg);
+  color: var(--status-up);
+  border: 1px solid var(--status-up-border);
+}
+.tag-ping.ping-med {
+  background: var(--status-warn-bg);
+  color: var(--status-warn);
+  border: 1px solid var(--status-warn-border);
+}
+.tag-ping.ping-slow {
+  background: var(--status-danger-bg);
+  color: var(--status-danger);
+  border: 1px solid var(--status-danger-border);
+}
+.icon-nano { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 
 header{display:flex;align-items:center;padding:12px 24px;
   border-bottom:1px solid var(--border-card);background:var(--bg-header);
@@ -431,6 +468,7 @@ header{display:flex;align-items:center;padding:12px 24px;
   color: var(--text-main);
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 4px;
 }
@@ -565,7 +603,7 @@ main{padding:20px 24px 60px;max-width:1280px;margin:0 auto}
   padding:14px 20px;box-shadow:var(--shadow-card);display:flex;align-items:center;justify-content:space-between;gap:16px;transition:all .15s}
 .exit-card:hover{border-color:var(--border-card-hover);background:var(--bg-card-hover)}
 .exit-main{display:flex;align-items:center;gap:14px;flex:1.2}
-.exit-ip{font-size:14px;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:8px}
+.exit-ip{font-size:14px;font-weight:700;color:var(--text-main);display:flex;align-items:center;flex-wrap:wrap;gap:8px}
 .copy-btn{font-size:11px;padding:2px 6px;border-radius:4px;background:var(--bg-surface);border:1px solid var(--border-card);color:var(--text-muted);cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:all .15s}
 .copy-btn:hover{background:var(--bg-surface-sub);color:var(--text-main)}
 .exit-meta{font-size:12px;color:var(--text-muted);margin-top:3px;display:flex;align-items:center;gap:8px}
@@ -1810,6 +1848,26 @@ function renderExits(){
         : '<span class="quality-tag tag-datacenter"><span class="dot-indicator"></span> 机房 ' + e.quality.score + '分</span>';
     }
 
+    // 延迟与速度徽章 (性能与测速数据)
+    let perfBadges = '';
+    if((e.ping && e.ping > 0) || (e.speed_mbps && e.speed_mbps > 0)){
+      let pingHTML = '';
+      if(e.ping && e.ping > 0){
+        const pingCls = e.ping < 100 ? 'ping-good' : (e.ping < 200 ? 'ping-med' : 'ping-slow');
+        pingHTML = '<span class="metric-tag tag-ping ' + pingCls + '" title="节点网络延迟: ' + e.ping + ' ms">'
+          + '<svg class="icon-nano" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>'
+          + e.ping + ' ms</span>';
+      }
+      let speedHTML = '';
+      if(e.speed_mbps && e.speed_mbps > 0){
+        const spd = e.speed_mbps >= 100 ? e.speed_mbps.toFixed(0) : e.speed_mbps.toFixed(1);
+        speedHTML = '<span class="metric-tag tag-speed" title="节点测速带宽: ' + spd + ' Mbps">'
+          + '<svg class="icon-nano" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>'
+          + spd + ' Mbps</span>';
+      }
+      perfBadges = pingHTML + speedHTML;
+    }
+
     // 运营商与连线时间
     const ispName = (e.quality && e.quality.isp) ? e.quality.isp : (e.isp || '');
     const metaHost = esc(e.host || '');
@@ -1858,6 +1916,7 @@ function renderExits(){
       +       '<span class="mono">' + esc(label) + '</span>'
       +       (e.exit_ip ? '<button type="button" class="copy-btn" data-copy="' + esc(e.exit_ip) + '" title="复制出口 IP"><svg class="icon-xs" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg><span>复制</span></button>' : '')
       +       qualityBadge
+      +       perfBadges
       +     '</div>'
       +     '<div class="exit-meta">'
       +       '<span>' + metaStr + '</span>'
@@ -1929,6 +1988,16 @@ function renderPipeline(){
       ? '<span class="quality-tag tag-residential"><span class="dot-indicator"></span> 住宅宽带 ' + score + '分</span>'
       : '<span class="quality-tag tag-datacenter"><span class="dot-indicator"></span> 机房节点 ' + score + '分</span>';
 
+    let corePerf = '';
+    if(coreOwner.ping && coreOwner.ping > 0){
+      const pingCls = coreOwner.ping < 100 ? 'ping-good' : (coreOwner.ping < 200 ? 'ping-med' : 'ping-slow');
+      corePerf += '<span class="metric-tag tag-ping ' + pingCls + '" title="节点网络延迟: ' + coreOwner.ping + ' ms"><svg class="icon-nano" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>' + coreOwner.ping + ' ms</span>';
+    }
+    if(coreOwner.speed_mbps && coreOwner.speed_mbps > 0){
+      const spd = coreOwner.speed_mbps >= 100 ? coreOwner.speed_mbps.toFixed(0) : coreOwner.speed_mbps.toFixed(1);
+      corePerf += '<span class="metric-tag tag-speed" title="节点测速带宽: ' + spd + ' Mbps"><svg class="icon-nano" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>' + spd + ' Mbps</span>';
+    }
+
     stage3HTML = '<div class="pipeline-stage exit-active" id="pipelineExitStage">'
       + '<div class="pipeline-stage-label">'
       +   '<span>真实出网节点</span>'
@@ -1938,6 +2007,7 @@ function renderPipeline(){
       +   '<span class="country-tag">' + country + '</span>'
       +   '<span class="mono">' + exitIP + '</span>'
       +   qualityTag
+      +   corePerf
       + '</div>'
       + '<div class="pipeline-stage-sub">'
       +   '运营商: <span style="color:var(--text-main);font-weight:600">' + isp + '</span> • 保护母机 IP 绝不外泄'

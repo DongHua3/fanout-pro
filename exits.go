@@ -26,7 +26,9 @@ type Exit struct {
 	ExitIP  string    `json:"exit_ip"`
 	Status  string    `json:"status"`
 	Err     string    `json:"err,omitempty"`
-	Since   time.Time `json:"since"`
+	Since     time.Time     `json:"since"`
+	Ping      int           `json:"ping"`
+	SpeedMbps float64       `json:"speed_mbps"`
 	// SOCKS5 凭据：界面要能看、能复制、能改
 	SocksUser string        `json:"socks_user"`
 	SocksPass string        `json:"socks_pass"`
@@ -144,10 +146,28 @@ func (m *Manager) ExitsOf() ExitsView {
 		if !ok {
 			qInfo = fallbackQuality(targetIP)
 		}
+		ping := t.Node.Ping
+		speed := t.Node.SpeedMbps
+		if ping == 0 && speed == 0 {
+			m.mu.Lock()
+			for _, n := range m.nodes {
+				if n.HostName == t.Node.HostName || n.IP == t.Node.IP {
+					if n.Ping > 0 {
+						ping = n.Ping
+					}
+					if n.SpeedMbps > 0 {
+						speed = n.SpeedMbps
+					}
+					break
+				}
+			}
+			m.mu.Unlock()
+		}
 		view.Exits = append(view.Exits, Exit{
 			Slot: t.Slot, Port: t.Port, Host: t.Node.HostName,
 			Region: t.Node.CountryCode, Country: t.Node.Country,
 			ExitIP: t.ExitIP, Status: t.Status, Err: t.Err, Since: t.Since,
+			Ping: ping, SpeedMbps: speed,
 			SocksUser: cred.User, SocksPass: cred.Pass,
 			Quality:   qInfo,
 		})
